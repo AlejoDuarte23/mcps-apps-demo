@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QA/QC Fittings Check Report</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 32px;
+      font-family: "Times New Roman", serif;
+      background: #ffffff;
+      color: #111111;
+    }
+    .page {
+      max-width: 1240px;
+      margin: 0 auto;
+    }
+    h1, h2, h3 {
+      margin: 0 0 12px 0;
+      font-weight: 700;
+    }
+    h1 {
+      font-size: 30px;
+      border-bottom: 2px solid #111111;
+      padding-bottom: 10px;
+      margin-bottom: 16px;
+    }
+    .subtitle {
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+    .section {
+      margin-bottom: 32px;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      border: 1.5px solid #111111;
+      padding: 14px;
+      text-align: center;
+    }
+    .stat-card .label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      margin-bottom: 6px;
+    }
+    .stat-card .value {
+      font-size: 30px;
+      font-weight: 700;
+    }
+    .charts {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      border: 1px solid #111111;
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #111111;
+      color: #ffffff;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+    .row-danger {
+      background: #f4cccc;
+    }
+    .caption {
+      font-size: 12px;
+      color: #333333;
+      margin: 6px 0 0 0;
+    }
+    img {
+      width: 100%;
+      border: 1px solid #111111;
+      background: #ffffff;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>QA/QC Fittings Check</h1>
+    <div class="subtitle">Engineering report generated on __DATE__</div>
+
+    <div class="section">
+      <div class="stats">
+        <div class="stat-card">
+          <div class="label">Total fittings</div>
+          <div class="value">__TOTAL_COUNT__</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Wrong family</div>
+          <div class="value">__WRONG_FAMILY_COUNT__</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Pressure issues</div>
+          <div class="value">__PRESSURE_ISSUE_COUNT__</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Report style</div>
+          <div class="value">ENG</div>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr><th>Metric</th><th>Value</th></tr>
+        </thead>
+        <tbody>
+          __SUMMARY_ROWS__
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section">
+      <h2>Plots</h2>
+      <div class="charts">
+        <div>
+          <img src="data:image/png;base64,__BAR_CHART_B64__" alt="Pressure drop chart">
+          <div class="caption">Bar plot of pressure drop per Revit ID. X label uses the last 3 characters of the Revit Element ID.</div>
+        </div>
+        <div>
+          <img src="data:image/png;base64,__PIE_CHART_B64__" alt="Family breakdown chart">
+          <div class="caption">Pie chart of family count breakdown.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Input Table</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>System Name</th>
+            <th>Revit Element ID</th>
+            <th>Family</th>
+            <th>Type</th>
+            <th>Pressure Drop</th>
+          </tr>
+        </thead>
+        <tbody>
+          __INPUT_ROWS__
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section">
+      <h2>Pressure Drop Check</h2>
+      <div class="caption">All fitting rows are checked for valid pressure drop values.</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Revit Element ID</th>
+            <th>Family</th>
+            <th>Pressure Drop</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          __PRESSURE_ROWS__
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section">
+      <h2>Element IDs vs Revit Types</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Revit Element ID</th>
+            <th>Current Family</th>
+            <th>Type</th>
+            <th>Family To Assign</th>
+          </tr>
+        </thead>
+        <tbody>
+          __WRONG_FAMILY_ROWS__
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>
