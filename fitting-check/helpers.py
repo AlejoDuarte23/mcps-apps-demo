@@ -8,6 +8,7 @@ from pathlib import Path
 
 import matplotlib
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 
 matplotlib.use("Agg")
 
@@ -145,19 +146,22 @@ def fig_to_base64(fig: plt.Figure) -> str:
 def build_pressure_drop_bar_base64(rows: list[dict]) -> str:
     labels = [row["short_revit_id"] or "-" for row in rows]
     values = [0 if math.isnan(row["pressure_drop"]) else row["pressure_drop"] for row in rows]
-    colors = ["#8B0000" if row["pressure_issue"] else "#111111" for row in rows]
+    colors = ["#E88D7B" if row["pressure_issue"] else "#5B8FA3" for row in rows]
 
     fig, ax = plt.subplots(figsize=(11, 4.8))
     fig.patch.set_facecolor("#ffffff")
     ax.set_facecolor("#ffffff")
     ax.bar(labels, values, color=colors, width=0.68)
-    ax.set_title("Pressure Drop per Revit ID", fontsize=13, fontweight="bold")
-    ax.set_xlabel("Last 3 characters of Revit Element ID", fontsize=10)
-    ax.set_ylabel("Pressure Drop (Pa)", fontsize=10)
-    ax.grid(axis="y", linestyle="--", linewidth=0.6, color="#d0d0d0")
+    ax.set_title("Pressure Drop per Revit ID", fontsize=13, fontweight="bold", color="#2C5F7D")
+    ax.set_xlabel("Last 3 characters of Revit Element ID", fontsize=10, color="#2C3E50")
+    ax.set_ylabel("Pressure Drop (Pa)", fontsize=10, color="#2C3E50")
+    ax.grid(axis="y", linestyle="--", linewidth=0.6, color="#E0EEF5")
     ax.set_axisbelow(True)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
+    ax.spines["left"].set_color("#D0E3ED")
+    ax.spines["bottom"].set_color("#D0E3ED")
+    ax.tick_params(colors="#2C3E50")
     fig.tight_layout()
     return fig_to_base64(fig)
 
@@ -165,14 +169,114 @@ def build_pressure_drop_bar_base64(rows: list[dict]) -> str:
 def build_family_pie_base64(family_counter: Counter) -> str:
     labels = list(family_counter.keys())
     values = list(family_counter.values())
-    colors = ["#111111", "#5f5f5f", "#9a9a9a", "#c8c8c8", "#8B0000", "#404040"]
+    colors = ["#5B8FA3", "#8FB8C9", "#A8C5D6", "#B8D4E3", "#E88D7B", "#9BAEC4"]
 
     fig, ax = plt.subplots(figsize=(7, 5))
     fig.patch.set_facecolor("#ffffff")
-    ax.pie(values, labels=labels, autopct="%1.0f%%", startangle=120, colors=colors[: len(values)], textprops={"fontsize": 8})
-    ax.set_title("Family Count Breakdown", fontsize=13, fontweight="bold")
+    ax.pie(values, labels=labels, autopct="%1.0f%%", startangle=120, colors=colors[: len(values)], textprops={"fontsize": 8, "color": "#2C3E50"})
+    ax.set_title("Family Count Breakdown", fontsize=13, fontweight="bold", color="#2C5F7D")
     fig.tight_layout()
     return fig_to_base64(fig)
+
+
+def build_plotly_pressure_drop_bar(rows: list[dict]) -> str:
+    labels = [row["short_revit_id"] or "-" for row in rows]
+    values = [0 if math.isnan(row["pressure_drop"]) else row["pressure_drop"] for row in rows]
+    colors = ["#E88D7B" if row["pressure_issue"] else "#5B8FA3" for row in rows]
+    hover_texts = [
+        f"<b>Revit ID:</b> ...{row['short_revit_id']}<br>"
+        f"<b>Full ID:</b> {row['revit_element_id']}<br>"
+        f"<b>Pressure Drop:</b> {row['pressure_drop_label']}<br>"
+        f"<b>Status:</b> {row['pressure_issue_reason']}"
+        for row in rows
+    ]
+
+    fig = go.Figure(
+        data=[
+            go.Bar(
+                x=labels,
+                y=values,
+                marker=dict(color=colors, line=dict(color="#D0E3ED", width=1)),
+                hovertemplate="%{customdata}<extra></extra>",
+                customdata=hover_texts,
+            )
+        ]
+    )
+
+    fig.update_layout(
+        title=dict(
+            text="Pressure Drop per Revit ID",
+            font=dict(size=16, color="#2C5F7D", family="Times New Roman"),
+            x=0.5,
+            xanchor="center",
+        ),
+        xaxis=dict(
+            title="Last 3 characters of Revit Element ID",
+            titlefont=dict(size=12, color="#2C3E50", family="Times New Roman"),
+            tickfont=dict(size=10, color="#2C3E50"),
+            gridcolor="#E0EEF5",
+            showgrid=False,
+            linecolor="#D0E3ED",
+        ),
+        yaxis=dict(
+            title="Pressure Drop (Pa)",
+            titlefont=dict(size=12, color="#2C3E50", family="Times New Roman"),
+            tickfont=dict(size=10, color="#2C3E50"),
+            gridcolor="#E0EEF5",
+            showgrid=True,
+            linecolor="#D0E3ED",
+        ),
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        hovermode="closest",
+        margin=dict(l=60, r=20, t=60, b=60),
+        height=400,
+    )
+
+    return fig.to_html(include_plotlyjs="cdn", div_id="pressure_drop_chart", config={"displayModeBar": True, "displaylogo": False})
+
+
+def build_plotly_family_pie(family_counter: Counter) -> str:
+    labels = list(family_counter.keys())
+    values = list(family_counter.values())
+    colors = ["#5B8FA3", "#8FB8C9", "#A8C5D6", "#B8D4E3", "#E88D7B", "#9BAEC4"]
+
+    fig = go.Figure(
+        data=[
+            go.Pie(
+                labels=labels,
+                values=values,
+                marker=dict(colors=colors[: len(values)], line=dict(color="white", width=2)),
+                hovertemplate="<b>%{label}</b><br>Count: %{value}<br>Percentage: %{percent}<extra></extra>",
+                textfont=dict(size=12, color="white", family="Times New Roman"),
+                textposition="inside",
+            )
+        ]
+    )
+
+    fig.update_layout(
+        title=dict(
+            text="Family Count Breakdown",
+            font=dict(size=16, color="#2C5F7D", family="Times New Roman"),
+            x=0.5,
+            xanchor="center",
+        ),
+        showlegend=True,
+        legend=dict(
+            font=dict(size=10, color="#2C3E50", family="Times New Roman"),
+            orientation="h",
+            yanchor="top",
+            y=-0.15,
+            xanchor="center",
+            x=0.5,
+        ),
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        margin=dict(l=20, r=20, t=60, b=80),
+        height=450,
+    )
+
+    return fig.to_html(include_plotlyjs=False, div_id="family_pie_chart", config={"displayModeBar": True, "displaylogo": False})
 
 
 def build_html_report(analysis: dict) -> str:
@@ -240,8 +344,8 @@ def build_html_report(analysis: dict) -> str:
         "__WRONG_FAMILY_ROWS__",
         wrong_family_rows_html or "<tr><td colspan='4'>No family changes required</td></tr>",
     )
-    html = html.replace("__BAR_CHART_B64__", build_pressure_drop_bar_base64(rows))
-    html = html.replace("__PIE_CHART_B64__", build_family_pie_base64(analysis["family_counter"]))
+    html = html.replace("__PLOTLY_BAR_CHART__", build_plotly_pressure_drop_bar(rows))
+    html = html.replace("__PLOTLY_PIE_CHART__", build_plotly_family_pie(analysis["family_counter"]))
     html = html.replace("__TOTAL_COUNT__", str(summary["total"]))
     html = html.replace("__WRONG_FAMILY_COUNT__", str(len(requires_change)))
     html = html.replace("__PRESSURE_ISSUE_COUNT__", str(len(pressure_issues)))
@@ -271,14 +375,29 @@ def build_pdf_report(analysis: dict) -> bytes:
     )
 
     styles = getSampleStyleSheet()
-    title_style = ParagraphStyle("title", parent=styles["Heading1"], fontSize=16, leading=20, spaceAfter=6)
-    h2_style = ParagraphStyle("h2", parent=styles["Heading2"], fontSize=11, leading=14, spaceBefore=10, spaceAfter=5)
-    body_style = ParagraphStyle("body", parent=styles["BodyText"], fontSize=8, leading=11)
-    small_style = ParagraphStyle("small", parent=styles["BodyText"], fontSize=7, leading=9)
+    title_style = ParagraphStyle("title", parent=styles["Heading1"], fontSize=16, leading=20, spaceAfter=6, textColor=colors.HexColor("#2C5F7D"))
+    h2_style = ParagraphStyle("h2", parent=styles["Heading2"], fontSize=11, leading=14, spaceBefore=10, spaceAfter=5, textColor=colors.HexColor("#2C5F7D"))
+    body_style = ParagraphStyle("body", parent=styles["BodyText"], fontSize=8, leading=11, textColor=colors.HexColor("#2C3E50"))
+    small_style = ParagraphStyle("small", parent=styles["BodyText"], fontSize=7, leading=9, textColor=colors.HexColor("#2C3E50"))
+    intro_style = ParagraphStyle("intro", parent=styles["BodyText"], fontSize=9, leading=12, spaceAfter=8, textColor=colors.HexColor("#2C3E50"))
+
+    today_str = date.today().strftime("%B %d, %Y")
 
     story = [
         Paragraph("QA/QC Fittings Check Report", title_style),
-        Paragraph("Engineering report for fitting family validation and pressure drop review", body_style),
+        Paragraph(f"Engineering Report - Generated on {today_str}", body_style),
+        Spacer(1, 3 * mm),
+        Paragraph(
+            "This report provides a comprehensive analysis of duct fitting elements to ensure compliance with company "
+            "standards and proper engineering specifications. The analysis includes validation of Revit family assignments, "
+            "pressure drop calculations, and identification of elements requiring corrective action.",
+            intro_style
+        ),
+        Paragraph(
+            "The quality assurance checks performed in this report verify that all fittings use approved company standard "
+            "Revit families and that pressure drop values are properly assigned for accurate system calculations.",
+            intro_style
+        ),
         Spacer(1, 4 * mm),
     ]
 
@@ -297,26 +416,75 @@ def build_pdf_report(analysis: dict) -> bytes:
     summary_table.setStyle(
         TableStyle(
             [
-                ("BACKGROUND", (0, 0), (-1, 0), colors.black),
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#5B8FA3")),
                 ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#9a9a9a")),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#D0E3ED")),
                 ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f1f1f1")]),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F0F7FA")]),
                 ("FONTSIZE", (0, 0), (-1, -1), 8),
             ]
         )
     )
-    story.append(Paragraph("1. Summary", h2_style))
+    story.append(Paragraph("1. Executive Summary", h2_style))
+    story.append(
+        Paragraph(
+            "The following summary provides key metrics for the analyzed fitting elements. This includes total counts, "
+            "compliance status, and items requiring corrective action.",
+            body_style
+        )
+    )
+    story.append(Spacer(1, 2 * mm))
     story.append(summary_table)
+    story.append(Spacer(1, 2 * mm))
+
+    compliance_rate = (summary["compliant_count"] / summary["total"] * 100) if summary["total"] > 0 else 0
+    status_text = (
+        f"<b>Compliance Rate:</b> {compliance_rate:.1f}% ({summary['compliant_count']} of {summary['total']} fittings). "
+    )
+    if summary["non_compliant_count"] > 0:
+        status_text += (
+            f"<b>Action Required:</b> {summary['requires_change_count']} fitting(s) require family reassignment and "
+            f"{summary['pressure_issue_count']} fitting(s) have pressure drop issues that must be resolved."
+        )
+    else:
+        status_text += "<b>Status:</b> All fittings meet compliance requirements."
+
+    story.append(Paragraph(status_text, body_style))
     story.append(Spacer(1, 4 * mm))
 
     bar_image = Image(image_from_base64(build_pressure_drop_bar_base64(analysis["rows"])), width=120 * mm, height=52 * mm)
     pie_image = Image(image_from_base64(build_family_pie_base64(analysis["family_counter"])), width=70 * mm, height=52 * mm)
-    story.append(Paragraph("2. Plots", h2_style))
+    story.append(Paragraph("2. Visual Analysis", h2_style))
+    story.append(
+        Paragraph(
+            "<b>Pressure Drop Analysis (Left):</b> Bar chart showing pressure drop values for each fitting element. "
+            "Red bars indicate fittings with missing or zero pressure drop values that require correction. "
+            "Blue bars represent fittings with valid pressure drop data.",
+            body_style
+        )
+    )
+    story.append(Spacer(1, 2 * mm))
+    story.append(
+        Paragraph(
+            "<b>Family Distribution (Right):</b> Pie chart illustrating the distribution of Revit family types across "
+            "all analyzed fittings. This provides insight into which family types are most commonly used in the system.",
+            body_style
+        )
+    )
+    story.append(Spacer(1, 3 * mm))
     story.append(Table([[bar_image, pie_image]], colWidths=[130 * mm, 75 * mm]))
     story.append(Spacer(1, 4 * mm))
 
-    story.append(Paragraph("3. Input Table", h2_style))
+    story.append(Paragraph("3. Detailed Fitting Inventory", h2_style))
+    story.append(
+        Paragraph(
+            "Complete listing of all analyzed duct fitting elements with their associated properties. "
+            "Rows highlighted in red indicate non-compliant fittings that require attention. "
+            "This table serves as the master record for tracking and corrective action.",
+            body_style
+        )
+    )
+    story.append(Spacer(1, 2 * mm))
     input_rows = [["System Name", "Revit Element ID", "Family", "Type", "Pressure Drop"]]
     for row in analysis["rows"]:
         input_rows.append(
@@ -330,20 +498,39 @@ def build_pdf_report(analysis: dict) -> bytes:
         )
     input_table = Table(input_rows, colWidths=[42 * mm, 35 * mm, 72 * mm, 48 * mm, 28 * mm], repeatRows=1)
     input_style = [
-        ("BACKGROUND", (0, 0), (-1, 0), colors.black),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#5B8FA3")),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#c0c0c0")),
+        ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#D0E3ED")),
         ("FONTSIZE", (0, 0), (-1, -1), 7),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
     ]
     for idx, row in enumerate(analysis["rows"], start=1):
         if not row["is_compliant"]:
-            input_style.append(("BACKGROUND", (0, idx), (-1, idx), colors.HexColor("#f4cccc")))
+            input_style.append(("BACKGROUND", (0, idx), (-1, idx), colors.HexColor("#FFE5E0")))
     input_table.setStyle(TableStyle(input_style))
     story.append(input_table)
     story.append(Spacer(1, 4 * mm))
 
-    story.append(Paragraph("4. Pressure Drop Check", h2_style))
+    story.append(Paragraph("4. Pressure Drop Validation", h2_style))
+    story.append(
+        Paragraph(
+            "This section validates that all fitting elements have appropriate pressure drop values assigned. "
+            "Pressure drop calculations are essential for accurate HVAC system performance analysis. "
+            "Elements with NaN (Not a Number) or zero values require pressure drop data to be entered in Revit.",
+            body_style
+        )
+    )
+    story.append(Spacer(1, 2 * mm))
+
+    pressure_ok_count = len([r for r in analysis["rows"] if not r["pressure_issue"]])
+    story.append(
+        Paragraph(
+            f"<b>Results:</b> {pressure_ok_count} of {summary['total']} fittings have valid pressure drop values. "
+            f"{summary['pressure_issue_count']} fitting(s) require correction.",
+            body_style
+        )
+    )
+    story.append(Spacer(1, 2 * mm))
     pressure_rows = [["Revit Element ID", "Family", "Pressure Drop", "Status"]]
     for row in analysis["rows"]:
         pressure_rows.append(
@@ -356,19 +543,39 @@ def build_pdf_report(analysis: dict) -> bytes:
         )
     pressure_table = Table(pressure_rows, colWidths=[38 * mm, 82 * mm, 30 * mm, 55 * mm], repeatRows=1)
     pressure_style = [
-        ("BACKGROUND", (0, 0), (-1, 0), colors.black),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#5B8FA3")),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#c0c0c0")),
+        ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#D0E3ED")),
         ("FONTSIZE", (0, 0), (-1, -1), 7),
     ]
     for idx, row in enumerate(analysis["rows"], start=1):
         if row["pressure_issue"]:
-            pressure_style.append(("BACKGROUND", (0, idx), (-1, idx), colors.HexColor("#f4cccc")))
+            pressure_style.append(("BACKGROUND", (0, idx), (-1, idx), colors.HexColor("#FFE5E0")))
     pressure_table.setStyle(TableStyle(pressure_style))
     story.append(pressure_table)
     story.append(Spacer(1, 4 * mm))
 
-    story.append(Paragraph("5. Wrong Family Assignments", h2_style))
+    story.append(Paragraph("5. Family Compliance Review", h2_style))
+    story.append(
+        Paragraph(
+            "This section identifies fitting elements that do not use company standard Revit families. "
+            f"The approved company standard for transition fittings is <b>{REQUIRED_FAMILY_NAME}</b>. "
+            "Elements using non-standard families should be updated to maintain consistency across the project and "
+            "ensure accurate pressure drop calculations.",
+            body_style
+        )
+    )
+    story.append(Spacer(1, 2 * mm))
+
+    family_ok_count = len([r for r in analysis["rows"] if r["is_company_standard"] and not r["is_wrong_family"]])
+    story.append(
+        Paragraph(
+            f"<b>Results:</b> {family_ok_count} of {summary['total']} fittings use company standard families. "
+            f"{summary['requires_change_count']} fitting(s) require family reassignment.",
+            body_style
+        )
+    )
+    story.append(Spacer(1, 2 * mm))
     family_rows = [["Revit Element ID", "Current Family", "Type", "Family To Assign"]]
     for row in analysis["rows"]:
         family_rows.append(
@@ -381,16 +588,56 @@ def build_pdf_report(analysis: dict) -> bytes:
         )
     family_table = Table(family_rows, colWidths=[38 * mm, 75 * mm, 40 * mm, 75 * mm], repeatRows=1)
     family_style = [
-        ("BACKGROUND", (0, 0), (-1, 0), colors.black),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#5B8FA3")),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#c0c0c0")),
+        ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#D0E3ED")),
         ("FONTSIZE", (0, 0), (-1, -1), 7),
     ]
     for idx, row in enumerate(analysis["rows"], start=1):
         if row in analysis["requires_change"]:
-            family_style.append(("BACKGROUND", (0, idx), (-1, idx), colors.HexColor("#f4cccc")))
+            family_style.append(("BACKGROUND", (0, idx), (-1, idx), colors.HexColor("#FFE5E0")))
     family_table.setStyle(TableStyle(family_style))
     story.append(family_table)
+    story.append(Spacer(1, 6 * mm))
+
+    story.append(Paragraph("6. Recommendations and Next Steps", h2_style))
+    story.append(Spacer(1, 2 * mm))
+
+    recommendations = []
+    if summary["requires_change_count"] > 0:
+        recommendations.append(
+            f"• Update {summary['requires_change_count']} fitting element(s) to use the company standard "
+            f"Revit family ({REQUIRED_FAMILY_NAME}) as identified in Section 5."
+        )
+    if summary["pressure_issue_count"] > 0:
+        recommendations.append(
+            f"• Assign valid pressure drop values to {summary['pressure_issue_count']} fitting element(s) "
+            "that currently have missing or zero values (see Section 4 for details)."
+        )
+    if summary["compliant_count"] == summary["total"]:
+        recommendations.append(
+            "• All fittings are compliant with company standards. No corrective action required at this time."
+        )
+    else:
+        recommendations.append(
+            "• After making corrections in Revit, re-export the fitting data and regenerate this report to verify compliance."
+        )
+        recommendations.append(
+            "• Maintain consistent use of company standard families for all future duct fitting placements."
+        )
+
+    for rec in recommendations:
+        story.append(Paragraph(rec, body_style))
+        story.append(Spacer(1, 2 * mm))
+
+    story.append(Spacer(1, 4 * mm))
+    story.append(
+        Paragraph(
+            "<b>Note:</b> This report was automatically generated by the QA/QC Fittings Check application. "
+            "For questions or assistance, please contact your BIM coordinator or project manager.",
+            body_style
+        )
+    )
 
     doc.build(story)
     buffer.seek(0)

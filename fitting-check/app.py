@@ -1,6 +1,9 @@
 import logging
+import math
 from datetime import date
 
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import viktor as vkt
 
 from helpers import (
@@ -60,14 +63,6 @@ class Parametrization(vkt.Parametrization):
     fittings_table.type_name = vkt.TextField("Type Name")
     fittings_table.pressure_drop = vkt.NumberField("Pressure Drop (Pa)")
 
-    input_note = vkt.Text(
-        "## Input note\n\n"
-        "Provide one row per duct fitting.\n"
-        "The pressure drop input is checked for all fittings.\n"
-        f"The company standard transition family used in this demo is `{REQUIRED_FAMILY_NAME}`.\n"
-        "Type Name is included for report traceability and Autodesk writeback."
-    )
-
     checks_note = vkt.Text(
         "## Checks in this app\n\n"
         "1. Company standard family check.\n"
@@ -98,8 +93,98 @@ class Controller(vkt.Controller):
         html = build_html_report(analysis)
         return vkt.WebResult(html=html)
 
+    @vkt.PlotlyView("Fittings Charts", duration_guess=1)
+    def fittings_chart(self, params, **kwargs) -> vkt.PlotlyResult:
+        analysis = self._analysis(params)
+        if not analysis["rows"]:
+            fig = go.Figure()
+            fig.add_annotation(
+                text="No fitting data entered yet.",
+                xref="paper",
+                yref="paper",
+                x=0.5,
+                y=0.5,
+                showarrow=False,
+                font=dict(size=16, color="#5B8FA3"),
+            )
+            fig.update_layout(
+                xaxis=dict(visible=False),
+                yaxis=dict(visible=False),
+                plot_bgcolor="white",
+            )
+            return vkt.PlotlyResult(fig)
+
+        rows = analysis["rows"]
+        family_counter = analysis["family_counter"]
+
+        fig = make_subplots(
+            rows=1,
+            cols=2,
+            subplot_titles=("Pressure Drop per Revit ID", "Family Count Breakdown"),
+            specs=[[{"type": "bar"}, {"type": "pie"}]],
+            column_widths=[0.6, 0.4],
+        )
+
+        labels = [row["short_revit_id"] or "-" for row in rows]
+        values = [0 if math.isnan(row["pressure_drop"]) else row["pressure_drop"] for row in rows]
+        colors = ["#E88D7B" if row["pressure_issue"] else "#5B8FA3" for row in rows]
+
+        fig.add_trace(
+            go.Bar(
+                x=labels,
+                y=values,
+                marker=dict(color=colors),
+                name="Pressure Drop",
+                hovertemplate="<b>Revit ID:</b> %{x}<br><b>Pressure Drop:</b> %{y:.2f} Pa<extra></extra>",
+            ),
+            row=1,
+            col=1,
+        )
+
+        pie_labels = list(family_counter.keys())
+        pie_values = list(family_counter.values())
+        pie_colors = ["#5B8FA3", "#8FB8C9", "#A8C5D6", "#B8D4E3", "#E88D7B", "#9BAEC4"]
+
+        fig.add_trace(
+            go.Pie(
+                labels=pie_labels,
+                values=pie_values,
+                marker=dict(colors=pie_colors[: len(pie_values)]),
+                name="Family Count",
+                hovertemplate="<b>%{label}</b><br>Count: %{value}<br>Percentage: %{percent}<extra></extra>",
+            ),
+            row=1,
+            col=2,
+        )
+
+        fig.update_xaxes(
+            title_text="Last 3 characters of Revit Element ID",
+            row=1,
+            col=1,
+            gridcolor="#E0EEF5",
+            title_font=dict(color="#2C3E50"),
+        )
+        fig.update_yaxes(
+            title_text="Pressure Drop (Pa)",
+            row=1,
+            col=1,
+            gridcolor="#E0EEF5",
+            title_font=dict(color="#2C3E50"),
+        )
+
+        fig.update_layout(
+            showlegend=False,
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+            font=dict(color="#2C3E50", size=11),
+            title_font=dict(color="#2C5F7D", size=14),
+            height=500,
+        )
+
+        return vkt.PlotlyResult(fig)
+
     @vkt.DataView("Compliance Summary")
-    def compliance_summary(self, params, **kwargs) -> vkt.DataResult:
+    def qa_qc_fittings_check(self, params, **kwargs) -> vkt.DataResult:
         analysis = self._analysis(params)
         compliant_rows = analysis["compliant_rows"]
         requires_change_rows = analysis["requires_change"]
