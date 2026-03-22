@@ -205,3 +205,9 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+reference.json
+AGENTS.md
+duct-velocity/spec.md
+metadata-tool/spec.md
+fitting-check/spec.md
+fitting-check/ideas.md
