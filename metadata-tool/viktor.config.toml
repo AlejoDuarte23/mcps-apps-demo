@@ -1,0 +1,3 @@
+python_version = "3.14"
+app_type = "simple"
+registered_name = "qa-qc-hvac-elements-required-metadata"
