@@ -1,4 +1,5 @@
 import logging
+from datetime import date
 
 import viktor as vkt
 
@@ -183,7 +184,7 @@ class Controller(vkt.Controller):
         return vkt.TableResult(rows, column_headers=headers)
 
     @vkt.DataView("Flex Duct — Sections to Change")
-    def view_flex_duct_changes(self, params, **kwargs) -> vkt.DataResult:
+    def qa_qc_flex_duct_checks(self, params, **kwargs) -> vkt.DataResult:
         """
         DataView showing only Flex Duct sections that require changes:
         FAIL (velocity exceeded) or INCONSISTENT (data mismatch).
@@ -273,7 +274,7 @@ class Controller(vkt.Controller):
         return vkt.DataResult(data)
 
     @vkt.DataView("Rigid Duct — Sections to Change")
-    def view_rigid_duct_changes(self, params, **kwargs) -> vkt.DataResult:
+    def qa_qc_rigid_duct_checks(self, params, **kwargs) -> vkt.DataResult:
         """
         DataView showing only Rigid Duct sections (Round + Rectangular) that
         require changes: FAIL (velocity exceeded) or INCONSISTENT (data mismatch).

@@ -17,17 +17,17 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: 'Times New Roman', Times, serif;
+      font-family: Arial, Helvetica, sans-serif;
       background: #ffffff;
-      color: #000000;
+      color: #2C3E50;
       padding: 40px 48px;
       font-size: 13px;
       line-height: 1.6;
     }
 
     .page-header {
-      border-top: 3px solid #000;
-      border-bottom: 1.5px solid #000;
+      border-top: 3px solid #000000;
+      border-bottom: 2px solid #000000;
       padding: 14px 0 10px 0;
       margin-bottom: 28px;
     }
@@ -37,16 +37,17 @@
       font-weight: 700;
       letter-spacing: 1px;
       text-transform: uppercase;
-      font-family: 'Courier New', monospace;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #000000;
     }
 
     .page-meta {
       font-size: 10px;
       letter-spacing: 1.5px;
       text-transform: uppercase;
-      color: #000;
+      color: #000000;
       margin-top: 4px;
-      font-family: 'Courier New', monospace;
+      font-family: Arial, Helvetica, sans-serif;
     }
 
     .section-title {
@@ -54,8 +55,9 @@
       font-weight: 700;
       letter-spacing: 2px;
       text-transform: uppercase;
-      font-family: 'Courier New', monospace;
-      border-bottom: 1.5px solid #000;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #000000;
+      border-bottom: 2px solid #000000;
       padding-bottom: 6px;
       margin-bottom: 16px;
     }
@@ -64,7 +66,7 @@
       width: 100%;
       border-collapse: collapse;
       font-size: 12px;
-      font-family: 'Courier New', monospace;
+      font-family: Arial, Helvetica, sans-serif;
     }
 
     .th {
@@ -74,30 +76,55 @@
       font-size: 10px;
       letter-spacing: 1px;
       text-transform: uppercase;
-      border-top: 2px solid #000;
-      border-bottom: 1.5px solid #000;
-      background: #fff;
-      color: #000;
+      border-top: 2px solid #000000;
+      border-bottom: 2px solid #000000;
+      background: #f8f9fa;
+      color: #000000;
     }
 
     .thr { text-align: right; }
 
     .td {
       padding: 7px 10px;
-      border-bottom: 1px solid #ccc;
+      border-bottom: 1px solid #cccccc;
       vertical-align: middle;
     }
 
     .tdr { text-align: right; }
 
     .page-footer {
-      border-top: 1.5px solid #000;
+      border-top: 2px solid #000000;
       padding-top: 10px;
       margin-top: 16px;
       font-size: 9px;
       letter-spacing: 0.8px;
-      font-family: 'Courier New', monospace;
-      color: #000;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #000000;
+    }
+
+    .intro {
+      background-color: #f8f9fa;
+      padding: 14px 16px;
+      border-left: 4px solid #000000;
+      margin-bottom: 28px;
+      line-height: 1.7;
+      font-size: 13px;
+    }
+
+    .intro p {
+      margin-bottom: 10px;
+    }
+
+    .intro p:last-child {
+      margin-bottom: 0;
+    }
+
+    .section-desc {
+      font-size: 12px;
+      margin-bottom: 14px;
+      color: #555555;
+      font-style: italic;
+      line-height: 1.6;
     }
   </style>
 </head>
@@ -107,27 +134,41 @@
     <div class="page-meta">Generated: __TODAY__ &nbsp;&nbsp;|&nbsp;&nbsp; ASHRAE HVAC Systems &amp; Equipment &nbsp;/&nbsp; SMACNA Duct Construction Standards</div>
   </div>
 
+  <div class="intro">
+    <p>This engineering quality assurance report validates HVAC ductwork air velocities against industry-standard maximum allowable limits defined in the <strong>ASHRAE Handbook – HVAC Systems &amp; Equipment</strong> and <strong>SMACNA HVAC Duct Construction Standards</strong>. Each duct segment is analyzed to ensure air velocities remain within acceptable ranges for the specified duct type (rigid or flexible) and application.</p>
+    <p>The tool calculates actual velocities from airflow rates and duct geometry, estimates pressure drop using the Darcy-Weisbach equation, and identifies non-compliant ducts that exceed velocity limits. For each non-compliant duct, the system proposes optimized standard duct sizes that meet velocity requirements while maintaining design airflow rates.</p>
+    <p>This automated validation helps prevent excessive noise, pressure losses, and energy waste caused by improper duct sizing. The report provides actionable recommendations for duct redesign to ensure compliance with mechanical design standards and optimal HVAC system performance.</p>
+  </div>
+
   __STAT_BOXES__
 
   <div style="margin-bottom:32px;">
     <div class="section-title">Engineering Equations &amp; Calculation Basis</div>
+    <div class="section-desc">The following engineering formulas define the calculation methodology used throughout this report. Velocity calculations derive from continuity principles (mass conservation), while pressure drop estimates use the Darcy-Weisbach equation with friction factors appropriate for rigid and flexible ductwork. All calculations follow SI units and industry-standard assumptions for air density and dynamic viscosity at standard conditions.</div>
     __FORMULA_BLOCK__
   </div>
 
   <div style="margin-bottom:8px;">
     <div class="section-title">Duct-by-Duct QA/QC Results</div>
+    <div class="section-desc">Comprehensive analysis of each duct segment showing calculated velocities, compliance status against ASHRAE maximum velocity limits, and estimated pressure drops. The "Calculated Velocity" column shows actual airflow velocity based on design airflow rate and duct dimensions. The "Max Allowed Velocity" column indicates the ASHRAE standard limit for the duct type. The "Compliance Status" column identifies ducts exceeding velocity limits that require resizing. Pressure drop estimates help assess energy performance and system efficiency implications of current duct sizing decisions.</div>
   </div>
   __RESULTS_TABLE__
 
   <div class="section-title">Optimization Summary</div>
+  <div class="section-desc">Proposed corrective actions for non-compliant duct segments. For each duct exceeding maximum velocity limits, this section recommends optimized standard duct sizes from the ASHRAE/SMACNA size schedule (100, 125, 150, 160, 200, 250, 315, 400, 500 mm). The recommended sizes ensure design airflow rates are maintained while reducing velocities below maximum allowable limits. Implementing these optimizations will improve system performance, reduce noise levels, minimize pressure losses, and ensure compliance with mechanical design standards. Each recommendation includes the current non-compliant size, the proposed compliant size, and verification that the optimized configuration meets velocity requirements.</div>
   __OPT_SUMMARY__
 
+  <div style="margin-top: 32px; margin-bottom: 16px; padding: 12px; background-color: #f8f9fa; border-left: 3px solid #000000; font-size: 11px; line-height: 1.6;">
+    <strong>Report Notes:</strong> This automated QA/QC analysis is based on design airflow rates, duct geometry data exported from Revit, and industry-standard velocity limits. All calculations assume standard air conditions (20°C, 101.325 kPa). Actual field conditions may vary. Recommended duct size optimizations should be reviewed by the project mechanical engineer and coordinated with architectural/structural constraints before implementation. For questions about methodology or recommendations, consult the project's mechanical design standards or contact the HVAC engineering team.
+  </div>
+
   <div class="page-footer">
-    Ref: ASHRAE Handbook &ndash; HVAC Systems &amp; Equipment (SI) &nbsp;|&nbsp;
+    <strong>References &amp; Calculation Parameters:</strong><br>
+    ASHRAE Handbook &ndash; HVAC Systems &amp; Equipment (SI) &nbsp;|&nbsp;
     SMACNA HVAC Duct Construction Standards &nbsp;|&nbsp;
-    Darcy-Weisbach: &lambda; = 0.020 (rigid), 0.035 (flex) &nbsp;|&nbsp;
-    &rho; = 1.2 kg/m&sup3; &nbsp;|&nbsp; &mu; = 1.81&times;10&sup2;&sup5; Pa&middot;s &nbsp;|&nbsp;
-    Standard sizes: 100 125 150 160 200 250 315 400 500 mm
+    Darcy-Weisbach Friction Factors: &lambda; = 0.020 (rigid duct), 0.035 (flexible duct) &nbsp;|&nbsp;
+    Air Properties: &rho; = 1.2 kg/m&sup3;, &mu; = 1.81&times;10<sup>-5</sup> Pa&middot;s &nbsp;|&nbsp;
+    Standard Duct Sizes: 100, 125, 150, 160, 200, 250, 315, 400, 500 mm
   </div>
 </body>
 </html>

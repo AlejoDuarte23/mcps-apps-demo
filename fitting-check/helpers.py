@@ -146,21 +146,21 @@ def fig_to_base64(fig: plt.Figure) -> str:
 def build_pressure_drop_bar_base64(rows: list[dict]) -> str:
     labels = [row["short_revit_id"] or "-" for row in rows]
     values = [0 if math.isnan(row["pressure_drop"]) else row["pressure_drop"] for row in rows]
-    colors = ["#E88D7B" if row["pressure_issue"] else "#5B8FA3" for row in rows]
+    colors = ["#E88D7B" if row["pressure_issue"] else "#1E90FF" for row in rows]
 
     fig, ax = plt.subplots(figsize=(11, 4.8))
     fig.patch.set_facecolor("#ffffff")
     ax.set_facecolor("#ffffff")
     ax.bar(labels, values, color=colors, width=0.68)
-    ax.set_title("Pressure Drop per Revit ID", fontsize=13, fontweight="bold", color="#2C5F7D")
+    ax.set_title("Pressure Drop per Revit ID", fontsize=13, fontweight="bold", color="#1E90FF")
     ax.set_xlabel("Last 3 characters of Revit Element ID", fontsize=10, color="#2C3E50")
     ax.set_ylabel("Pressure Drop (Pa)", fontsize=10, color="#2C3E50")
-    ax.grid(axis="y", linestyle="--", linewidth=0.6, color="#E0EEF5")
+    ax.grid(axis="y", linestyle="--", linewidth=0.6, color="#C9E5FF")
     ax.set_axisbelow(True)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
-    ax.spines["left"].set_color("#D0E3ED")
-    ax.spines["bottom"].set_color("#D0E3ED")
+    ax.spines["left"].set_color("#A8D0FF")
+    ax.spines["bottom"].set_color("#A8D0FF")
     ax.tick_params(colors="#2C3E50")
     fig.tight_layout()
     return fig_to_base64(fig)
@@ -169,12 +169,12 @@ def build_pressure_drop_bar_base64(rows: list[dict]) -> str:
 def build_family_pie_base64(family_counter: Counter) -> str:
     labels = list(family_counter.keys())
     values = list(family_counter.values())
-    colors = ["#5B8FA3", "#8FB8C9", "#A8C5D6", "#B8D4E3", "#E88D7B", "#9BAEC4"]
+    colors = ["#1E90FF", "#4DA6FF", "#70B8FF", "#94C9FF", "#E88D7B", "#B8DAFF"]
 
     fig, ax = plt.subplots(figsize=(7, 5))
     fig.patch.set_facecolor("#ffffff")
     ax.pie(values, labels=labels, autopct="%1.0f%%", startangle=120, colors=colors[: len(values)], textprops={"fontsize": 8, "color": "#2C3E50"})
-    ax.set_title("Family Count Breakdown", fontsize=13, fontweight="bold", color="#2C5F7D")
+    ax.set_title("Family Count Breakdown", fontsize=13, fontweight="bold", color="#1E90FF")
     fig.tight_layout()
     return fig_to_base64(fig)
 
@@ -182,7 +182,7 @@ def build_family_pie_base64(family_counter: Counter) -> str:
 def build_plotly_pressure_drop_bar(rows: list[dict]) -> str:
     labels = [row["short_revit_id"] or "-" for row in rows]
     values = [0 if math.isnan(row["pressure_drop"]) else row["pressure_drop"] for row in rows]
-    colors = ["#E88D7B" if row["pressure_issue"] else "#5B8FA3" for row in rows]
+    colors = ["#E88D7B" if row["pressure_issue"] else "#1E90FF" for row in rows]
     hover_texts = [
         f"<b>Revit ID:</b> ...{row['short_revit_id']}<br>"
         f"<b>Full ID:</b> {row['revit_element_id']}<br>"
@@ -196,7 +196,7 @@ def build_plotly_pressure_drop_bar(rows: list[dict]) -> str:
             go.Bar(
                 x=labels,
                 y=values,
-                marker=dict(color=colors, line=dict(color="#D0E3ED", width=1)),
+                marker=dict(color=colors, line=dict(color="#A8D0FF", width=1)),
                 hovertemplate="%{customdata}<extra></extra>",
                 customdata=hover_texts,
             )
@@ -206,7 +206,7 @@ def build_plotly_pressure_drop_bar(rows: list[dict]) -> str:
     fig.update_layout(
         title=dict(
             text="Pressure Drop per Revit ID",
-            font=dict(size=16, color="#2C5F7D", family="Times New Roman"),
+            font=dict(size=16, color="#1E90FF", family="Times New Roman"),
             x=0.5,
             xanchor="center",
         ),
@@ -214,17 +214,17 @@ def build_plotly_pressure_drop_bar(rows: list[dict]) -> str:
             title="Last 3 characters of Revit Element ID",
             titlefont=dict(size=12, color="#2C3E50", family="Times New Roman"),
             tickfont=dict(size=10, color="#2C3E50"),
-            gridcolor="#E0EEF5",
+            gridcolor="#C9E5FF",
             showgrid=False,
-            linecolor="#D0E3ED",
+            linecolor="#A8D0FF",
         ),
         yaxis=dict(
             title="Pressure Drop (Pa)",
             titlefont=dict(size=12, color="#2C3E50", family="Times New Roman"),
             tickfont=dict(size=10, color="#2C3E50"),
-            gridcolor="#E0EEF5",
+            gridcolor="#C9E5FF",
             showgrid=True,
-            linecolor="#D0E3ED",
+            linecolor="#A8D0FF",
         ),
         plot_bgcolor="white",
         paper_bgcolor="white",
@@ -239,7 +239,7 @@ def build_plotly_pressure_drop_bar(rows: list[dict]) -> str:
 def build_plotly_family_pie(family_counter: Counter) -> str:
     labels = list(family_counter.keys())
     values = list(family_counter.values())
-    colors = ["#5B8FA3", "#8FB8C9", "#A8C5D6", "#B8D4E3", "#E88D7B", "#9BAEC4"]
+    colors = ["#1E90FF", "#4DA6FF", "#70B8FF", "#94C9FF", "#E88D7B", "#B8DAFF"]
 
     fig = go.Figure(
         data=[
@@ -257,7 +257,7 @@ def build_plotly_family_pie(family_counter: Counter) -> str:
     fig.update_layout(
         title=dict(
             text="Family Count Breakdown",
-            font=dict(size=16, color="#2C5F7D", family="Times New Roman"),
+            font=dict(size=16, color="#1E90FF", family="Times New Roman"),
             x=0.5,
             xanchor="center",
         ),
@@ -375,8 +375,8 @@ def build_pdf_report(analysis: dict) -> bytes:
     )
 
     styles = getSampleStyleSheet()
-    title_style = ParagraphStyle("title", parent=styles["Heading1"], fontSize=16, leading=20, spaceAfter=6, textColor=colors.HexColor("#2C5F7D"))
-    h2_style = ParagraphStyle("h2", parent=styles["Heading2"], fontSize=11, leading=14, spaceBefore=10, spaceAfter=5, textColor=colors.HexColor("#2C5F7D"))
+    title_style = ParagraphStyle("title", parent=styles["Heading1"], fontSize=16, leading=20, spaceAfter=6, textColor=colors.HexColor("#1E90FF"))
+    h2_style = ParagraphStyle("h2", parent=styles["Heading2"], fontSize=11, leading=14, spaceBefore=10, spaceAfter=5, textColor=colors.HexColor("#1E90FF"))
     body_style = ParagraphStyle("body", parent=styles["BodyText"], fontSize=8, leading=11, textColor=colors.HexColor("#2C3E50"))
     small_style = ParagraphStyle("small", parent=styles["BodyText"], fontSize=7, leading=9, textColor=colors.HexColor("#2C3E50"))
     intro_style = ParagraphStyle("intro", parent=styles["BodyText"], fontSize=9, leading=12, spaceAfter=8, textColor=colors.HexColor("#2C3E50"))
@@ -416,11 +416,11 @@ def build_pdf_report(analysis: dict) -> bytes:
     summary_table.setStyle(
         TableStyle(
             [
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#5B8FA3")),
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1E90FF")),
                 ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#D0E3ED")),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#A8D0FF")),
                 ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F0F7FA")]),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#E6F3FF")]),
                 ("FONTSIZE", (0, 0), (-1, -1), 8),
             ]
         )
@@ -498,9 +498,9 @@ def build_pdf_report(analysis: dict) -> bytes:
         )
     input_table = Table(input_rows, colWidths=[42 * mm, 35 * mm, 72 * mm, 48 * mm, 28 * mm], repeatRows=1)
     input_style = [
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#5B8FA3")),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1E90FF")),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#D0E3ED")),
+        ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#A8D0FF")),
         ("FONTSIZE", (0, 0), (-1, -1), 7),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
     ]
@@ -543,9 +543,9 @@ def build_pdf_report(analysis: dict) -> bytes:
         )
     pressure_table = Table(pressure_rows, colWidths=[38 * mm, 82 * mm, 30 * mm, 55 * mm], repeatRows=1)
     pressure_style = [
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#5B8FA3")),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1E90FF")),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#D0E3ED")),
+        ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#A8D0FF")),
         ("FONTSIZE", (0, 0), (-1, -1), 7),
     ]
     for idx, row in enumerate(analysis["rows"], start=1):
@@ -588,9 +588,9 @@ def build_pdf_report(analysis: dict) -> bytes:
         )
     family_table = Table(family_rows, colWidths=[38 * mm, 75 * mm, 40 * mm, 75 * mm], repeatRows=1)
     family_style = [
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#5B8FA3")),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1E90FF")),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#D0E3ED")),
+        ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#A8D0FF")),
         ("FONTSIZE", (0, 0), (-1, -1), 7),
     ]
     for idx, row in enumerate(analysis["rows"], start=1):

@@ -105,7 +105,7 @@ class Controller(vkt.Controller):
                 x=0.5,
                 y=0.5,
                 showarrow=False,
-                font=dict(size=16, color="#5B8FA3"),
+                font=dict(size=16, color="#1E90FF"),
             )
             fig.update_layout(
                 xaxis=dict(visible=False),
@@ -127,7 +127,7 @@ class Controller(vkt.Controller):
 
         labels = [row["short_revit_id"] or "-" for row in rows]
         values = [0 if math.isnan(row["pressure_drop"]) else row["pressure_drop"] for row in rows]
-        colors = ["#E88D7B" if row["pressure_issue"] else "#5B8FA3" for row in rows]
+        colors = ["#E88D7B" if row["pressure_issue"] else "#1E90FF" for row in rows]
 
         fig.add_trace(
             go.Bar(
@@ -143,7 +143,7 @@ class Controller(vkt.Controller):
 
         pie_labels = list(family_counter.keys())
         pie_values = list(family_counter.values())
-        pie_colors = ["#5B8FA3", "#8FB8C9", "#A8C5D6", "#B8D4E3", "#E88D7B", "#9BAEC4"]
+        pie_colors = ["#1E90FF", "#4DA6FF", "#70B8FF", "#94C9FF", "#E88D7B", "#B8DAFF"]
 
         fig.add_trace(
             go.Pie(
@@ -161,14 +161,14 @@ class Controller(vkt.Controller):
             title_text="Last 3 characters of Revit Element ID",
             row=1,
             col=1,
-            gridcolor="#E0EEF5",
+            gridcolor="#C9E5FF",
             title_font=dict(color="#2C3E50"),
         )
         fig.update_yaxes(
             title_text="Pressure Drop (Pa)",
             row=1,
             col=1,
-            gridcolor="#E0EEF5",
+            gridcolor="#C9E5FF",
             title_font=dict(color="#2C3E50"),
         )
 
@@ -177,7 +177,7 @@ class Controller(vkt.Controller):
             plot_bgcolor="white",
             paper_bgcolor="white",
             font=dict(color="#2C3E50", size=11),
-            title_font=dict(color="#2C5F7D", size=14),
+            title_font=dict(color="#1E90FF", size=14),
             height=500,
         )
 

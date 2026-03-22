@@ -1,8 +1,11 @@
+import base64
 import logging
 from collections import Counter
+from io import BytesIO
+
 import viktor as vkt
 
-from helpers import build_bar_chart, build_html_report, build_pie_chart, enrich_element, get_unique_types
+from helpers import build_bar_chart, build_html_report, build_pie_chart, build_plotly_pie_chart, enrich_element, get_unique_types
 
 logger = logging.getLogger("viktor")
 
@@ -33,7 +36,7 @@ METADATA_DATABASE = {
 
 
 class Parametrization(vkt.Parametrization):
-    title = vkt.Text("""# Revit - Elements Metadata App
+    title = vkt.Text("""# QA/QC Elements Metadata App
 **Automated metadata lookup for Revit MEP elements.** Enter elements below (System Name, Element ID, Category, Family & Type Name) to match against the internal database — enriching each with **Manufacturer, Model, Keynote, Assembly Code, Type Mark and Cost**. Elements not found are highlighted in **amber**.
 """)
 
@@ -59,7 +62,7 @@ class Parametrization(vkt.Parametrization):
     download_title = vkt.Text("""# Download Report
 **Export the full Metadata Report as a PDF** — includes a **project summary**, **all element instances** with enriched metadata, **analytical charts**, and a **unique types summary**.
 """)
-    download_report = vkt.DownloadButton("📄 Download PDF Report", method="download_pdf")
+    download_report = vkt.DownloadButton("Download PDF Report", method="download_pdf_report")
 
 
 
@@ -89,39 +92,30 @@ class Controller(vkt.Controller):
         metadata_found_count = len([el for el in enriched if el["status"] == "Metadata Found"])
         logger.info(f"WebView: total={len(enriched)}, unique={len(unique_types)}, metadata_found={metadata_found_count}")
 
-        # --- Chart 1: Bar chart – element count by type name ---
+        # --- Chart 2: Plotly Pie chart – distribution by type name ---
         type_counter = Counter(el["typeName"] for el in enriched)
         type_labels = list(type_counter.keys())
         type_counts = list(type_counter.values())
-        chart1_b64 = build_bar_chart(type_labels, type_counts, "Element Count by Type", "Type Name")
+        chart2_plotly = build_plotly_pie_chart(type_labels, type_counts, "Element Distribution by Type")
 
-        # --- Chart 2: Pie chart – distribution by type name ---
-        chart2_b64 = build_pie_chart(type_labels, type_counts, "Element Distribution by Type")
-
-        # --- Chart 3: Bar chart – element count by family name ---
+        # --- Chart 4: Plotly Pie chart – distribution by family name ---
         family_counter = Counter(el["familyName"] for el in enriched)
         family_labels = list(family_counter.keys())
         family_counts = list(family_counter.values())
-        chart3_b64 = build_bar_chart(family_labels, family_counts, "Element Count by Family Name", "Family Name")
-
-        # --- Chart 4: Pie chart – distribution by family name ---
-        chart4_b64 = build_pie_chart(family_labels, family_counts, "Element Distribution by Family Name")
+        chart4_plotly = build_plotly_pie_chart(family_labels, family_counts, "Element Distribution by Family Name")
 
         # --- Build HTML ---
         html = build_html_report(
             enriched=enriched,
             unique_types=unique_types,
             metadata_found_count=metadata_found_count,
-            chart1_b64=chart1_b64,
-            chart2_b64=chart2_b64,
-            chart3_b64=chart3_b64,
-            chart4_b64=chart4_b64,
+            chart2_plotly=chart2_plotly,
+            chart4_plotly=chart4_plotly,
         )
         return vkt.WebResult(html=html)
 
-    @vkt.DataView("Unique Types - Metadata Summary")
-    def get_types_metadata(self, params, **kwargs):
-        """Display the Unique Types Metadata Summary as a DataView grouped by type."""
+    @vkt.DataView("Metadata to Assign Summary")
+    def qa_qc_metadata_to_assign(self, params, **kwargs):
         enriched = [enrich_element(el, METADATA_DATABASE) for el in self.get_input_elements(params)]
         unique_types = get_unique_types(enriched)
 
@@ -188,20 +182,40 @@ class Controller(vkt.Controller):
             topMargin=15 * mm, bottomMargin=15 * mm,
         )
         styles = getSampleStyleSheet()
-        title_style = ParagraphStyle("title", parent=styles["Heading1"], fontSize=16, spaceAfter=6)
-        h2_style = ParagraphStyle("h2", parent=styles["Heading2"], fontSize=12, spaceBefore=14, spaceAfter=4)
-        small_style = ParagraphStyle("small", parent=styles["Normal"], fontSize=8)
-        body_style = ParagraphStyle("body", parent=styles["Normal"], fontSize=9, spaceAfter=6)
+        title_style = ParagraphStyle("title", parent=styles["Heading1"], fontSize=16, spaceAfter=6, textColor=colors.HexColor("#1E90FF"))
+        h2_style = ParagraphStyle("h2", parent=styles["Heading2"], fontSize=12, spaceBefore=14, spaceAfter=4, textColor=colors.HexColor("#1E90FF"))
+        small_style = ParagraphStyle("small", parent=styles["Normal"], fontSize=8, textColor=colors.HexColor("#2C3E50"))
+        body_style = ParagraphStyle("body", parent=styles["Normal"], fontSize=9, spaceAfter=6, textColor=colors.HexColor("#2C3E50"))
 
         story = []
 
         # --- Title ---
         story.append(Paragraph("Revit Elements Metadata Report", title_style))
         story.append(Paragraph("Revit MEP Elements — Automated Metadata Lookup from Type Database", body_style))
+        story.append(Spacer(1, 3 * mm))
+        story.append(Paragraph(
+            "This report provides a comprehensive analysis of Revit MEP element instances and their associated "
+            "metadata properties. The tool automatically enriches element data by matching family and type names "
+            "against a centralized metadata database containing manufacturer information, model numbers, keynotes, "
+            "assembly codes, and cost data.",
+            body_style
+        ))
+        story.append(Paragraph(
+            "Elements that cannot be matched to the database are flagged for manual review and metadata assignment. "
+            "This automated approach ensures consistent metadata standards across the project and facilitates BIM "
+            "coordination, quantity takeoffs, and construction documentation workflows.",
+            body_style
+        ))
         story.append(Spacer(1, 6 * mm))
 
         # --- Section 1: Project Summary ---
         story.append(Paragraph("1. Project Summary", h2_style))
+        story.append(Paragraph(
+            "The following metrics summarize the metadata enrichment results for all analyzed Revit elements. "
+            "Elements are matched against the database using the combination of family name and type name as a unique identifier.",
+            body_style
+        ))
+        story.append(Spacer(1, 2 * mm))
         not_in_db_count = len(enriched) - metadata_found_count
         summary_data = [
             ["Metric", "Value"],
@@ -212,22 +226,44 @@ class Controller(vkt.Controller):
         ]
         summary_table = Table(summary_data, colWidths=[80 * mm, 40 * mm])
         summary_table.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#333333")),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1E90FF")),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
             ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
             ("FONTSIZE", (0, 0), (-1, -1), 9),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f5f5f5")]),
-            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cccccc")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#E6F3FF")]),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#A8D0FF")),
             ("LEFTPADDING", (0, 0), (-1, -1), 6),
             ("RIGHTPADDING", (0, 0), (-1, -1), 6),
             ("TOPPADDING", (0, 0), (-1, -1), 4),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
         ]))
         story.append(summary_table)
+        story.append(Spacer(1, 2 * mm))
+
+        coverage_rate = (metadata_found_count / len(enriched) * 100) if len(enriched) > 0 else 0
+        summary_text = (
+            f"<b>Database Coverage Rate:</b> {coverage_rate:.1f}% ({metadata_found_count} of {len(enriched)} elements matched). "
+        )
+        if not_in_db_count > 0:
+            summary_text += (
+                f"<b>Action Required:</b> {not_in_db_count} element(s) are not in the database and require "
+                "manual metadata assignment or database updates."
+            )
+        else:
+            summary_text += "<b>Status:</b> All elements successfully matched to metadata database."
+
+        story.append(Paragraph(summary_text, body_style))
         story.append(Spacer(1, 6 * mm))
 
         # --- Section 2: Element Instance Metadata Table ---
         story.append(Paragraph("2. Element Instance Metadata", h2_style))
+        story.append(Paragraph(
+            "Complete listing of all analyzed Revit element instances with enriched metadata properties. "
+            "Rows highlighted in coral indicate elements that could not be matched to the database and are missing metadata. "
+            "This table includes system assignment, category classification, and all available metadata fields.",
+            body_style
+        ))
+        story.append(Spacer(1, 2 * mm))
         inst_headers = ["Element ID", "System", "Category", "Family Name", "Type Name",
                         "Manufacturer", "Model", "Keynote", "Assembly Code", "Type Mark", "Cost", "Status"]
         inst_rows = [inst_headers]
@@ -246,28 +282,35 @@ class Controller(vkt.Controller):
         col_widths = [w * mm * page_w / sum(w * mm for w in col_widths) for w in col_widths]
         inst_table = Table(inst_rows, colWidths=col_widths, repeatRows=1)
         inst_style = [
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#333333")),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1E90FF")),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
             ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
             ("FONTSIZE", (0, 0), (-1, -1), 7),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f5f5f5")]),
-            ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#cccccc")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#E6F3FF")]),
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#A8D0FF")),
             ("LEFTPADDING", (0, 0), (-1, -1), 4),
             ("RIGHTPADDING", (0, 0), (-1, -1), 4),
             ("TOPPADDING", (0, 0), (-1, -1), 3),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ]
-        # Highlight "Not in Database" rows in amber
+        # Highlight "Not in Database" rows in soft coral
         for row_idx, el in enumerate(enriched, start=1):
             if el["status"] == "Not in Database":
-                inst_style.append(("BACKGROUND", (0, row_idx), (-1, row_idx), colors.HexColor("#fff3cd")))
+                inst_style.append(("BACKGROUND", (0, row_idx), (-1, row_idx), colors.HexColor("#FFE5E0")))
         inst_table.setStyle(TableStyle(inst_style))
         story.append(inst_table)
         story.append(Spacer(1, 6 * mm))
 
         # --- Section 3: Charts (2x2 grid using a table of images) ---
-        story.append(Paragraph("3. Charts", h2_style))
+        story.append(Paragraph("3. Visual Analysis", h2_style))
+        story.append(Paragraph(
+            "The following charts provide visual representations of element distribution and composition. "
+            "These visualizations help identify the most common element types and families in the project, "
+            "supporting quality control and coordination efforts.",
+            body_style
+        ))
+        story.append(Spacer(1, 2 * mm))
         chart_w = (page_w / 2) - 5 * mm
         chart_h = chart_w * 0.55
 
@@ -283,7 +326,7 @@ class Controller(vkt.Controller):
             colWidths=[chart_w + 5 * mm, chart_w + 5 * mm],
         )
         charts_table.setStyle(TableStyle([
-            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cccccc")),
+            ("GRID", (0, 0), (-1, -1), 1, colors.HexColor("#A8D0FF")),
             ("ALIGN", (0, 0), (-1, -1), "CENTER"),
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ("LEFTPADDING", (0, 0), (-1, -1), 4),
@@ -296,6 +339,13 @@ class Controller(vkt.Controller):
 
         # --- Section 4: Unique Types Metadata Summary ---
         story.append(Paragraph("4. Unique Types Metadata Summary", h2_style))
+        story.append(Paragraph(
+            "This section consolidates metadata for all unique family-type combinations found in the project. "
+            "Each unique type represents a distinct element configuration that may appear multiple times in the model. "
+            "Rows highlighted in coral indicate types that require database entries or manual metadata assignment.",
+            body_style
+        ))
+        story.append(Spacer(1, 2 * mm))
         ut_headers = ["Family Name", "Type Name", "Category", "Manufacturer",
                       "Model", "Keynote", "Assembly Code", "Type Mark", "Cost", "Status"]
         ut_rows = [ut_headers]
@@ -312,12 +362,12 @@ class Controller(vkt.Controller):
         ut_col_widths = [w * mm * page_w / sum(w * mm for w in ut_col_widths_raw) for w in ut_col_widths_raw]
         ut_table = Table(ut_rows, colWidths=ut_col_widths, repeatRows=1)
         ut_style = [
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#333333")),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1E90FF")),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
             ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
             ("FONTSIZE", (0, 0), (-1, -1), 7),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f5f5f5")]),
-            ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#cccccc")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#E6F3FF")]),
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#A8D0FF")),
             ("LEFTPADDING", (0, 0), (-1, -1), 4),
             ("RIGHTPADDING", (0, 0), (-1, -1), 4),
             ("TOPPADDING", (0, 0), (-1, -1), 3),
@@ -326,9 +376,58 @@ class Controller(vkt.Controller):
         ]
         for row_idx, ut in enumerate(unique_types, start=1):
             if ut["status"] == "Not in Database":
-                ut_style.append(("BACKGROUND", (0, row_idx), (-1, row_idx), colors.HexColor("#fff3cd")))
+                ut_style.append(("BACKGROUND", (0, row_idx), (-1, row_idx), colors.HexColor("#FFE5E0")))
         ut_table.setStyle(TableStyle(ut_style))
         story.append(ut_table)
+        story.append(Spacer(1, 6 * mm))
+
+        # --- Section 5: Recommendations ---
+        story.append(Paragraph("5. Recommendations and Next Steps", h2_style))
+        story.append(Spacer(1, 2 * mm))
+
+        recommendations = []
+        if not_in_db_count > 0:
+            recommendations.append(
+                f"<b>Database Updates:</b> Add {not_in_db_count} missing family-type combination(s) to the metadata "
+                "database with complete manufacturer, model, keynote, assembly code, type mark, and cost information."
+            )
+            recommendations.append(
+                "<b>Manual Assignment:</b> For elements that cannot be added to the database, manually assign metadata "
+                "properties directly in Revit using the Type Properties dialog."
+            )
+
+        if metadata_found_count > 0:
+            recommendations.append(
+                f"<b>Metadata Verification:</b> Review the {metadata_found_count} element(s) with auto-assigned metadata "
+                "to ensure accuracy and completeness before proceeding with construction documentation."
+            )
+
+        if not_in_db_count == 0:
+            recommendations.append(
+                "<b>Success:</b> All element types are present in the database with complete metadata. "
+                "No corrective action required at this time."
+            )
+        else:
+            recommendations.append(
+                "<b>Re-validation:</b> After updating the database or manually assigning metadata in Revit, "
+                "regenerate this report to verify that all elements have complete metadata."
+            )
+
+        recommendations.append(
+            "<b>Data Governance:</b> Maintain the metadata database as a centralized resource for consistent "
+            "BIM data standards across all projects. Establish workflows for adding new families and types."
+        )
+
+        for rec in recommendations:
+            story.append(Paragraph(rec, body_style))
+            story.append(Spacer(1, 2 * mm))
+
+        story.append(Spacer(1, 4 * mm))
+        story.append(Paragraph(
+            "<b>Note:</b> This report was automatically generated by the Revit Elements Metadata Tool. "
+            "For questions about metadata standards or database updates, contact your BIM manager or project coordinator.",
+            body_style
+        ))
 
         # Build PDF
         doc.build(story)
