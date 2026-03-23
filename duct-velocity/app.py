@@ -183,200 +183,153 @@ class Controller(vkt.Controller):
         logger.info(f"Reference table rendered: {len(rows)} entries")
         return vkt.TableResult(rows, column_headers=headers)
 
-    @vkt.DataView("Flex Duct — Sections to Change")
+    @vkt.DataView("Flex Duct — Compliance Summary")
     def qa_qc_flex_duct_checks(self, params, **kwargs) -> vkt.DataResult:
         """
-        DataView showing only Flex Duct sections that require changes:
-        FAIL (velocity exceeded) or INCONSISTENT (data mismatch).
-        Groups results by issue type with full engineering detail per duct.
+        DataView showing Flex Duct compliance status.
         """
         duct_rows = list(params.duct_table) if params.duct_table else []
         system_type = params.system_type or "Supply"
         results = process_ducts(duct_rows, system_type=system_type)
 
-        # Filter: flex ducts that need attention
-        flex_fail   = [r for r in results if "flex" in r["duct_type"].lower() and r["status"] == "OVERSIZE"]
-        flex_incons = [r for r in results if "flex" in r["duct_type"].lower() and r["status"] == "INCONSISTENT"]
-        flex_pass   = [r for r in results if "flex" in r["duct_type"].lower() and r["status"] == "COMPLIANT"]
+        # Filter: flex ducts
+        flex_all = [r for r in results if "flex" in r["duct_type"].lower()]
+        flex_compliant = [r for r in flex_all if r["status"] == "COMPLIANT"]
+        flex_non_compliant = [r for r in flex_all if r["status"] in ("OVERSIZE", "INCONSISTENT")]
 
-        logger.info(f"Flex ducts — OVERSIZE: {len(flex_fail)}, INCONSISTENT: {len(flex_incons)}, COMPLIANT: {len(flex_pass)}")
+        logger.info(f"Flex ducts — Compliant: {len(flex_compliant)}, Non-compliant: {len(flex_non_compliant)}")
 
-        def duct_item(r: dict) -> vkt.DataItem:
-            """Build a DataItem for a single duct with its key metrics as subgroup."""
-            v_max_str  = f'{r["v_max"]:.2f} m/s'  if isinstance(r["v_max"],  float) else str(r["v_max"])
-            v_calc_str = f'{r["v_calc"]:.2f} m/s'  if isinstance(r["v_calc"], float) else str(r["v_calc"])
-            dp_str     = f'{r["delta_p"]:.2f} Pa/m' if isinstance(r["delta_p"],float) else str(r["delta_p"])
-            opt_str    = r["optimization"] if r["optimization"] != "—" else "No standard size available"
-
-            return vkt.DataItem(
-                r["revit_id"],
-                r["status"],
-                subgroup=vkt.DataGroup(
-                    system_name = vkt.DataItem("System Name",         r["system_name"] or "—"),
-                    flow_q      = vkt.DataItem("Flow",                r["airflow_q_ls"], suffix="L/s"),
-                    size_now    = vkt.DataItem("Current Diameter",    r["current_size_label"]),
-                    v_measured  = vkt.DataItem("Measured Velocity",   r["v_measured"],  suffix="m/s"),
-                    v_max      = vkt.DataItem("Max Allowed (ASHRAE)", v_max_str),
-                    v_calc     = vkt.DataItem("Calculated Velocity",  v_calc_str),
-                    delta_p    = vkt.DataItem("Pressure Drop",        dp_str),
-                    proposal   = vkt.DataItem("Proposed Diameter",    opt_str),
-                )
+        # Compliant group
+        compliant_group = (
+            vkt.DataGroup(
+                **{
+                    f"compliant_{i}": vkt.DataItem(
+                        r["revit_id"],
+                        "Compliant",
+                        status=vkt.DataStatus.SUCCESS,
+                    )
+                    for i, r in enumerate(flex_compliant)
+                }
             )
+            if flex_compliant
+            else vkt.DataGroup(
+                empty=vkt.DataItem("Compliant flex ducts", "None", status=vkt.DataStatus.WARNING)
+            )
+        )
 
-        # ── OVERSIZE group ────────────────────────────────────────────────
-        if flex_fail:
-            fail_kwargs = {f"duct_{i}": duct_item(r) for i, r in enumerate(flex_fail)}
-            fail_group = vkt.DataGroup(**fail_kwargs)
-            fail_item = vkt.DataItem(
-                f"Velocity Exceeded — {len(flex_fail)} duct(s) must be resized",
-                "",
-                subgroup=fail_group,
-                status=vkt.DataStatus.ERROR,
+        # Non-compliant group
+        non_compliant_group = (
+            vkt.DataGroup(
+                **{
+                    f"non_compliant_{i}": vkt.DataItem(
+                        r["revit_id"],
+                        r["status"],
+                        status=vkt.DataStatus.ERROR if r["status"] == "OVERSIZE" else vkt.DataStatus.WARNING,
+                        subgroup=vkt.DataGroup(
+                            type=vkt.DataItem("Type", r["duct_type"]),
+                            current_size=vkt.DataItem("Current Size (Diameter)", r["current_size_label"]),
+                            proposed_size=vkt.DataItem("Proposed Size (Diameter)", r["optimization"] if r["optimization"] != "—" else "No standard size available"),
+                        ),
+                    )
+                    for i, r in enumerate(flex_non_compliant)
+                }
             )
-        else:
-            fail_item = vkt.DataItem(
-                "Velocity Exceeded",
-                "None — all flex ducts comply",
-                status=vkt.DataStatus.SUCCESS,
+            if flex_non_compliant
+            else vkt.DataGroup(
+                empty=vkt.DataItem("Non-compliant flex ducts", "None — all comply", status=vkt.DataStatus.SUCCESS)
             )
-
-        # ── INCONSISTENT group ────────────────────────────────────────────
-        if flex_incons:
-            incons_kwargs = {f"duct_{i}": duct_item(r) for i, r in enumerate(flex_incons)}
-            incons_group = vkt.DataGroup(**incons_kwargs)
-            incons_item = vkt.DataItem(
-                f"Data Inconsistency — {len(flex_incons)} duct(s) need field verification",
-                "",
-                subgroup=incons_group,
-                status=vkt.DataStatus.WARNING,
-            )
-        else:
-            incons_item = vkt.DataItem(
-                "Data Inconsistency",
-                "None — all flex duct measurements are consistent",
-                status=vkt.DataStatus.SUCCESS,
-            )
-
-        # ── Summary header ────────────────────────────────────────────────
-        total_flex    = len([r for r in results if "flex" in r["duct_type"].lower()])
-        needs_change  = len(flex_fail) + len(flex_incons)
-        summary_item  = vkt.DataItem(
-            "Flex Duct Summary",
-            f"{needs_change} of {total_flex} section(s) require action",
-            status=vkt.DataStatus.ERROR if needs_change > 0 else vkt.DataStatus.SUCCESS,
         )
 
         data = vkt.DataGroup(
-            summary  = summary_item,
-            failures = fail_item,
-            warnings = incons_item,
+            compliant=vkt.DataItem(
+                "Compliant Flex Ducts",
+                f"{len(flex_compliant)} duct(s)",
+                status=vkt.DataStatus.SUCCESS if flex_compliant else vkt.DataStatus.WARNING,
+                subgroup=compliant_group,
+            ),
+            non_compliant=vkt.DataItem(
+                "Requires Resizing",
+                f"{len(flex_non_compliant)} duct(s)",
+                status=vkt.DataStatus.ERROR if flex_non_compliant else vkt.DataStatus.SUCCESS,
+                subgroup=non_compliant_group,
+            ),
         )
         return vkt.DataResult(data)
 
-    @vkt.DataView("Rigid Duct — Sections to Change")
+    @vkt.DataView("Rigid Duct — Compliance Summary")
     def qa_qc_rigid_duct_checks(self, params, **kwargs) -> vkt.DataResult:
         """
-        DataView showing only Rigid Duct sections (Round + Rectangular) that
-        require changes: FAIL (velocity exceeded) or INCONSISTENT (data mismatch).
-        Splits results by sub-type: Round vs Rectangular.
+        DataView showing Rigid Duct compliance status.
         """
         duct_rows = list(params.duct_table) if params.duct_table else []
         system_type = params.system_type or "Supply"
         results = process_ducts(duct_rows, system_type=system_type)
 
-        # Filter: rigid ducts only (round + rectangular)
-        rigid_all   = [r for r in results if "rigid" in r["duct_type"].lower()]
-        round_fail  = [r for r in rigid_all if "round" in r["duct_type"].lower() and r["status"] == "OVERSIZE"]
-        round_incon = [r for r in rigid_all if "round" in r["duct_type"].lower() and r["status"] == "INCONSISTENT"]
-        rect_fail   = [r for r in rigid_all if "rectangular" in r["duct_type"].lower() and r["status"] == "OVERSIZE"]
-        rect_incon  = [r for r in rigid_all if "rectangular" in r["duct_type"].lower() and r["status"] == "INCONSISTENT"]
+        # Filter: rigid ducts (round + rectangular)
+        rigid_all = [r for r in results if "rigid" in r["duct_type"].lower()]
+        rigid_compliant = [r for r in rigid_all if r["status"] == "COMPLIANT"]
+        rigid_non_compliant = [r for r in rigid_all if r["status"] in ("OVERSIZE", "INCONSISTENT")]
 
-        logger.info(
-            f"Rigid ducts — Round OVERSIZE: {len(round_fail)}, Round INCON: {len(round_incon)}, "
-            f"Rect OVERSIZE: {len(rect_fail)}, Rect INCON: {len(rect_incon)}"
+        logger.info(f"Rigid ducts — Compliant: {len(rigid_compliant)}, Non-compliant: {len(rigid_non_compliant)}")
+
+        # Compliant group
+        compliant_group = (
+            vkt.DataGroup(
+                **{
+                    f"compliant_{i}": vkt.DataItem(
+                        r["revit_id"],
+                        "Compliant",
+                        status=vkt.DataStatus.SUCCESS,
+                    )
+                    for i, r in enumerate(rigid_compliant)
+                }
+            )
+            if rigid_compliant
+            else vkt.DataGroup(
+                empty=vkt.DataItem("Compliant rigid ducts", "None", status=vkt.DataStatus.WARNING)
+            )
         )
 
-        def duct_item(r: dict) -> vkt.DataItem:
-            """Build a DataItem for a single rigid duct with engineering detail."""
-            v_max_str  = f'{r["v_max"]:.2f} m/s'   if isinstance(r["v_max"],  float) else str(r["v_max"])
-            v_calc_str = f'{r["v_calc"]:.2f} m/s'   if isinstance(r["v_calc"], float) else str(r["v_calc"])
-            dp_str     = f'{r["delta_p"]:.2f} Pa/m'  if isinstance(r["delta_p"],float) else str(r["delta_p"])
-            opt_str    = r["optimization"] if r["optimization"] != "—" else "No standard size available"
-            d_curr     = int(r.get("diam_mm", 0) or 0)
-            d_prop     = r.get("proposed_size")
-            dp_red     = "—"
-            if d_curr > 0 and d_prop and d_prop > d_curr:
-                ratio  = (d_prop / d_curr) ** 5
-                dp_red = f"~{(1 - 1/ratio)*100:.0f}% reduction"
+        # Non-compliant group (with dynamic labels based on duct shape)
+        def make_non_compliant_item(i, r):
+            is_round = "round" in r["duct_type"].lower()
+            current_label = "Current Size (Diameter)" if is_round else "Current Size (Width x Height)"
+            proposed_label = "Proposed Size (Diameter)" if is_round else "Proposed Size (Width x Height)"
 
             return vkt.DataItem(
                 r["revit_id"],
                 r["status"],
+                status=vkt.DataStatus.ERROR if r["status"] == "OVERSIZE" else vkt.DataStatus.WARNING,
                 subgroup=vkt.DataGroup(
-                    system_name = vkt.DataItem("System Name",         r["system_name"] or "—"),
-                    flow_q      = vkt.DataItem("Flow",                r["airflow_q_ls"], suffix="L/s"),
-                    size_now    = vkt.DataItem("Current Size",        r["current_size_label"]),
-                    v_measured = vkt.DataItem("Measured Velocity",    r["v_measured"], suffix="m/s"),
-                    v_max      = vkt.DataItem("Max Allowed (ASHRAE)", v_max_str),
-                    v_calc     = vkt.DataItem("Calculated Velocity",  v_calc_str),
-                    delta_p    = vkt.DataItem("Pressure Drop",        dp_str),
-                    proposal   = vkt.DataItem("Proposed Size",        opt_str),
-                    dp_saving  = vkt.DataItem("Est. ΔP Reduction",    dp_red),
-                )
+                    type=vkt.DataItem("Type", r["duct_type"]),
+                    current_size=vkt.DataItem(current_label, r["current_size_label"]),
+                    proposed_size=vkt.DataItem(proposed_label, r["optimization"] if r["optimization"] != "—" else "No standard size available"),
+                ),
             )
 
-        def make_group_item(label: str, rows: list, status_val) -> vkt.DataItem:
-            """Build a collapsible DataItem group for a list of duct results."""
-            if rows:
-                kwargs_dict = {f"duct_{i}": duct_item(r) for i, r in enumerate(rows)}
-                return vkt.DataItem(label, "", subgroup=vkt.DataGroup(**kwargs_dict), status=status_val)
-            return vkt.DataItem(label, "None — compliant", status=vkt.DataStatus.SUCCESS)
-
-        # ── Round sub-section ─────────────────────────────────────────────
-        round_fail_item  = make_group_item(
-            f"Round — Velocity Exceeded ({len(round_fail)} duct(s))", round_fail,  vkt.DataStatus.ERROR)
-        round_incon_item = make_group_item(
-            f"Round — Data Inconsistency ({len(round_incon)} duct(s))", round_incon, vkt.DataStatus.WARNING)
-
-        round_section = vkt.DataItem(
-            "Rigid Duct (Round)",
-            f"{len(round_fail) + len(round_incon)} section(s) need action",
-            subgroup=vkt.DataGroup(
-                fail  = round_fail_item,
-                incon = round_incon_item,
-            ),
-            status=vkt.DataStatus.ERROR if (round_fail or round_incon) else vkt.DataStatus.SUCCESS,
-        )
-
-        # ── Rectangular sub-section ───────────────────────────────────────
-        rect_fail_item  = make_group_item(
-            f"Rectangular — Velocity Exceeded ({len(rect_fail)} duct(s))", rect_fail,  vkt.DataStatus.ERROR)
-        rect_incon_item = make_group_item(
-            f"Rectangular — Data Inconsistency ({len(rect_incon)} duct(s))", rect_incon, vkt.DataStatus.WARNING)
-
-        rect_section = vkt.DataItem(
-            "Rigid Duct (Rectangular)",
-            f"{len(rect_fail) + len(rect_incon)} section(s) need action",
-            subgroup=vkt.DataGroup(
-                fail  = rect_fail_item,
-                incon = rect_incon_item,
-            ),
-            status=vkt.DataStatus.ERROR if (rect_fail or rect_incon) else vkt.DataStatus.SUCCESS,
-        )
-
-        # ── Overall summary ───────────────────────────────────────────────
-        total_rigid   = len(rigid_all)
-        needs_change  = len(round_fail) + len(round_incon) + len(rect_fail) + len(rect_incon)
-        summary_item  = vkt.DataItem(
-            "Rigid Duct Summary",
-            f"{needs_change} of {total_rigid} section(s) require action",
-            status=vkt.DataStatus.ERROR if needs_change > 0 else vkt.DataStatus.SUCCESS,
+        non_compliant_group = (
+            vkt.DataGroup(
+                **{f"non_compliant_{i}": make_non_compliant_item(i, r) for i, r in enumerate(rigid_non_compliant)}
+            )
+            if rigid_non_compliant
+            else vkt.DataGroup(
+                empty=vkt.DataItem("Non-compliant rigid ducts", "None — all comply", status=vkt.DataStatus.SUCCESS)
+            )
         )
 
         data = vkt.DataGroup(
-            summary      = summary_item,
-            round_ducts  = round_section,
-            rect_ducts   = rect_section,
+            compliant=vkt.DataItem(
+                "Compliant Rigid Ducts",
+                f"{len(rigid_compliant)} duct(s)",
+                status=vkt.DataStatus.SUCCESS if rigid_compliant else vkt.DataStatus.WARNING,
+                subgroup=compliant_group,
+            ),
+            non_compliant=vkt.DataItem(
+                "Requires Resizing",
+                f"{len(rigid_non_compliant)} duct(s)",
+                status=vkt.DataStatus.ERROR if rigid_non_compliant else vkt.DataStatus.SUCCESS,
+                subgroup=non_compliant_group,
+            ),
         )
         return vkt.DataResult(data)
 
