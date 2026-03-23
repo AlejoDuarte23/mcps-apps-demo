@@ -226,6 +226,7 @@ class Controller(vkt.Controller):
                         r["status"],
                         status=vkt.DataStatus.ERROR if r["status"] == "OVERSIZE" else vkt.DataStatus.WARNING,
                         subgroup=vkt.DataGroup(
+                            system_name=vkt.DataItem("System Name", r["system_name"] or "—"),
                             type=vkt.DataItem("Type", r["duct_type"]),
                             current_size=vkt.DataItem("Current Size (Diameter)", r["current_size_label"]),
                             proposed_size=vkt.DataItem("Proposed Size (Diameter)", r["optimization"] if r["optimization"] != "—" else "No standard size available"),
@@ -301,6 +302,7 @@ class Controller(vkt.Controller):
                 r["status"],
                 status=vkt.DataStatus.ERROR if r["status"] == "OVERSIZE" else vkt.DataStatus.WARNING,
                 subgroup=vkt.DataGroup(
+                    system_name=vkt.DataItem("System Name", r["system_name"] or "—"),
                     type=vkt.DataItem("Type", r["duct_type"]),
                     current_size=vkt.DataItem(current_label, r["current_size_label"]),
                     proposed_size=vkt.DataItem(proposed_label, r["optimization"] if r["optimization"] != "—" else "No standard size available"),
