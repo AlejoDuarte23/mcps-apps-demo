@@ -9,8 +9,30 @@ import plotly.graph_objects as go
 matplotlib.use("Agg")
 
 
+def normalize_family_name(family_name: str) -> str:
+    family_name = (family_name or "").strip()
+    if family_name.startswith("System Family: "):
+        return family_name.replace("System Family: ", "", 1).strip()
+    return family_name
+
+
 def get_lookup_key(element: dict) -> str:
-    return f"{element['familyName']}|{element['typeName']}"
+    return f"{normalize_family_name(element['familyName'])}|{element['typeName']}"
+
+
+def build_fallback_metadata(element: dict) -> dict:
+    family_name = normalize_family_name(element["familyName"])
+    type_name = element["typeName"] or "Standard"
+
+    return {
+        "Manufacturer": "Demo Company",
+        "Model": f"{family_name.upper().replace(' ', '-')[:24]}-{type_name.upper().replace(' ', '-')[:16]}",
+        "Keynote": "23 00 00",
+        "Description": f"Fallback metadata for {family_name} {type_name}",
+        "Assembly Code": "23.00.00.00",
+        "Type Mark": f"FB-{type_name.upper().replace(' ', '-')[:20]}",
+        "Cost": "50.00",
+    }
 
 
 def enrich_element(element: dict, metadata_database: dict) -> dict:
@@ -19,11 +41,12 @@ def enrich_element(element: dict, metadata_database: dict) -> dict:
     enriched = dict(element)
     if db_entry:
         enriched.update(db_entry["metadataToApply"])
+        enriched["familyName"] = normalize_family_name(enriched["familyName"])
         enriched["status"] = "Metadata Found"
     else:
-        for field in ("Manufacturer", "Model", "Keynote", "Description", "Assembly Code", "Type Mark", "Cost"):
-            enriched[field] = "N/A"
-        enriched["status"] = "Not in Database"
+        enriched["familyName"] = normalize_family_name(enriched["familyName"])
+        enriched.update(build_fallback_metadata(enriched))
+        enriched["status"] = "Fallback Metadata"
     return enriched
 
 

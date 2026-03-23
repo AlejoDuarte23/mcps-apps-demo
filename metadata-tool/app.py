@@ -12,17 +12,29 @@ logger = logging.getLogger("viktor")
 
 
 METADATA_DATABASE = {
-    "System Family: Flex Duct Round|Flex - Round": {
-        "familyName": "System Family: Flex Duct Round", "typeName": "Flex - Round", "category": "OST_FlexDuctCurves",
+    "Flex Duct Round|Flex - Round": {
+        "familyName": "Flex Duct Round", "typeName": "Flex - Round", "category": "OST_FlexDuctCurves",
         "metadataToApply": {"Manufacturer": "DemoFlex", "Model": "FLEX-RND-STD", "Keynote": "23 31 00", "Description": "Round flexible duct for supply air routing", "Assembly Code": "23.31.13.00", "Type Mark": "FD-RND-STD", "Cost": "18.50"},
     },
     "M_Rectangular to Round Duct Transition - Angle|45 Degree": {
         "familyName": "M_Rectangular to Round Duct Transition - Angle", "typeName": "45 Degree", "category": "OST_DuctFitting",
         "metadataToApply": {"Manufacturer": "DemoFab", "Model": "RTR-45", "Keynote": "23 33 00", "Description": "Rectangular to round duct transition with 45 degree angle", "Assembly Code": "23.33.13.00", "Type Mark": "DF-RTR-45", "Cost": "78.00"},
     },
-    "System Family: Rectangular Duct|Mitered Elbows / Taps": {
-        "familyName": "System Family: Rectangular Duct", "typeName": "Mitered Elbows / Taps", "category": "OST_DuctCurves",
+    "Rectangular Duct|Mitered Elbows / Taps": {
+        "familyName": "Rectangular Duct", "typeName": "Mitered Elbows / Taps", "category": "OST_DuctCurves",
         "metadataToApply": {"Manufacturer": "DemoSheetMetal", "Model": "RECT-MITER-TAP", "Keynote": "23 31 13", "Description": "Rectangular duct system type using mitered elbows and taps", "Assembly Code": "23.31.13.13", "Type Mark": "RD-MIT-TAP", "Cost": "42.00"},
+    },
+    "Rectangular Duct|Mitered Elbows / Tees": {
+        "familyName": "Rectangular Duct", "typeName": "Mitered Elbows / Tees", "category": "OST_DuctCurves",
+        "metadataToApply": {"Manufacturer": "DemoSheetMetal", "Model": "RECT-MITER-TEE", "Keynote": "23 31 13", "Description": "Rectangular duct system type using mitered elbows and tees", "Assembly Code": "23.31.13.13", "Type Mark": "RD-MIT-TEE", "Cost": "44.00"},
+    },
+    "M_Rectangular Duct Transition - Angle|45 Degree": {
+        "familyName": "M_Rectangular Duct Transition - Angle", "typeName": "45 Degree", "category": "OST_DuctFitting",
+        "metadataToApply": {"Manufacturer": "DemoFab", "Model": "RDTA-45", "Keynote": "23 33 00", "Description": "Rectangular duct transition angle fitting", "Assembly Code": "23.33.13.00", "Type Mark": "DF-RECT-TRANS-45", "Cost": "72.00"},
+    },
+    "M_Rectangular Duct Takeoff|Standard": {
+        "familyName": "M_Rectangular Duct Takeoff", "typeName": "Standard", "category": "OST_DuctFitting",
+        "metadataToApply": {"Manufacturer": "DemoFab", "Model": "RDTO-STD", "Keynote": "23 33 00", "Description": "Rectangular duct takeoff fitting", "Assembly Code": "23.33.13.00", "Type Mark": "DF-TAKEOFF-STD", "Cost": "61.00"},
     },
     "M_Rectangular Duct Tee|Standard": {
         "familyName": "M_Rectangular Duct Tee", "typeName": "Standard", "category": "OST_DuctFitting",
@@ -43,14 +55,15 @@ class Parametrization(vkt.Parametrization):
     elements = vkt.Table(
         "Revit Elements",
         default=[
-            {"system_name": "Mechanical Supply Air 17", "revit_element_id": "120001", "category": "OST_FlexDuctCurves",  "family_name": "System Family: Flex Duct Round",                    "type_name": "Flex - Round"},
-            {"system_name": "Mechanical Supply Air 17", "revit_element_id": "120006", "category": "OST_FlexDuctCurves",  "family_name": "System Family: Flex Duct Round",                    "type_name": "Flex - Round"},
+            {"system_name": "Mechanical Supply Air 17", "revit_element_id": "120001", "category": "OST_FlexDuctCurves",  "family_name": "Flex Duct Round",                                  "type_name": "Flex - Round"},
+            {"system_name": "Mechanical Supply Air 17", "revit_element_id": "120006", "category": "OST_FlexDuctCurves",  "family_name": "Flex Duct Round",                                  "type_name": "Flex - Round"},
             {"system_name": "Mechanical Supply Air 17", "revit_element_id": "120002", "category": "OST_DuctFitting",     "family_name": "M_Rectangular to Round Duct Transition - Angle",    "type_name": "45 Degree"},
             {"system_name": "Mechanical Supply Air 17", "revit_element_id": "120007", "category": "OST_DuctFitting",     "family_name": "M_Rectangular to Round Duct Transition - Angle",    "type_name": "45 Degree"},
-            {"system_name": "Mechanical Supply Air 17", "revit_element_id": "120003", "category": "OST_DuctCurves",      "family_name": "System Family: Rectangular Duct",                   "type_name": "Mitered Elbows / Taps"},
-            {"system_name": "Mechanical Supply Air 17", "revit_element_id": "120008", "category": "OST_DuctCurves",      "family_name": "System Family: Rectangular Duct",                   "type_name": "Mitered Elbows / Taps"},
+            {"system_name": "Mechanical Supply Air 17", "revit_element_id": "120003", "category": "OST_DuctCurves",      "family_name": "Rectangular Duct",                                  "type_name": "Mitered Elbows / Taps"},
+            {"system_name": "Mechanical Supply Air 17", "revit_element_id": "120008", "category": "OST_DuctCurves",      "family_name": "Rectangular Duct",                                  "type_name": "Mitered Elbows / Taps"},
             {"system_name": "Mechanical Supply Air 17", "revit_element_id": "120004", "category": "OST_DuctFitting",     "family_name": "M_Rectangular Duct Tee",                            "type_name": "Standard"},
             {"system_name": "Mechanical Supply Air 17", "revit_element_id": "120009", "category": "OST_DuctFitting",     "family_name": "M_Rectangular Duct Tee",                            "type_name": "Standard"},
+            {"system_name": "Mechanical Supply Air 17", "revit_element_id": "120010", "category": "OST_DuctTerminal",    "family_name": "M_Supply Diffuser - Rectangular Face Round Neck",   "type_name": "600x600 - 250 Neck"},
         ],
     )
     elements.system_name       = vkt.TextField("System Name")
