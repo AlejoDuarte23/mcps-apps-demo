@@ -7,7 +7,7 @@ from plotly.subplots import make_subplots
 import viktor as vkt
 
 from helpers import (
-    REQUIRED_FAMILY_NAME,
+    REQUIRED_TYPE_NAME,
     analyze_fittings,
     build_html_report,
     build_pdf_report,
@@ -20,8 +20,8 @@ logger = logging.getLogger("viktor")
 class Parametrization(vkt.Parametrization):
     intro = vkt.Text(
         "# QA/QC – Fittings Check\n\n"
-        "This app checks if duct fittings use company standard Revit families and if all fittings have valid pressure drop values.\n"
-        "It returns compliant elements and fittings that require a family update to the company standard transition family."
+        "This app checks if duct fittings use company standard Revit types and if all fittings have valid pressure drop values (Tees not included). "
+        "It returns compliant elements and fittings that require a Type update to comply with the company standard."
     )
 
     fittings_table = vkt.Table(
@@ -31,14 +31,14 @@ class Parametrization(vkt.Parametrization):
                 "system_name": "Mechanical Supply Air 17",
                 "revit_element_id": "8452101",
                 "family_name": "M_Round Duct Transition - Angle",
-                "type_name": "45 Degree",
+                "type_name": "30 Degree",
                 "pressure_drop": 11.4,
             },
             {
                 "system_name": "Mechanical Supply Air 17",
                 "revit_element_id": "8452102",
                 "family_name": "M_Rectangular Duct Tee",
-                "type_name": "Standard",
+                "type_name": "45 Degree",
                 "pressure_drop": 0.0,
             },
             {
@@ -52,7 +52,7 @@ class Parametrization(vkt.Parametrization):
                 "system_name": "Mechanical Supply Air 17",
                 "revit_element_id": "8452104",
                 "family_name": "M_Round",
-                "type_name": "Tap",
+                "type_name": "30°",
                 "pressure_drop": 0.0,
             },
         ],
@@ -65,15 +65,15 @@ class Parametrization(vkt.Parametrization):
 
     checks_note = vkt.Text(
         "## Checks in this app\n\n"
-        "1. Company standard family check.\n"
-        "2. Pressure drop check for all fitting rows.\n"
-        "3. Web report with input table, plots, pressure drop review, and wrong family review.\n"
-        "4. One grouped data view with compliant fittings and fittings that require a family change."
+        "1. Check that the fitting type does not contain `30` or `30°`.\n"
+        f"2. Recommend `{REQUIRED_TYPE_NAME}` when a type change is required.\n"
+        "3. Web report with input table, plots, type review, and type change review.\n"
+        "4. One grouped data view with compliant fittings and fittings that require a type change."
     )
 
     download_note = vkt.Text(
         "## PDF report\n\n"
-        "The PDF contains the input table, pressure drop plot, family breakdown pie chart, pressure drop review, and wrong family assignment table."
+        "The PDF contains the input table, pressure drop plot, family breakdown pie chart, type review, and type change table."
     )
     download_button = vkt.DownloadButton("Download PDF Report", method="download_pdf")
 
@@ -215,7 +215,8 @@ class Controller(vkt.Controller):
                         status=vkt.DataStatus.ERROR,
                         subgroup=vkt.DataGroup(
                             current_family=vkt.DataItem("Current Family", row["family_name"]),
-                            family_to_assign=vkt.DataItem("Family To Assign", REQUIRED_FAMILY_NAME),
+                            current_type=vkt.DataItem("Current Type", row["type_name"] or "N/A"),
+                            type_to_assign=vkt.DataItem("Type To Assign", REQUIRED_TYPE_NAME),
                         ),
                     )
                     for index, row in enumerate(requires_change_rows)
@@ -223,7 +224,7 @@ class Controller(vkt.Controller):
             )
             if requires_change_rows
             else vkt.DataGroup(
-                empty=vkt.DataItem("Fittings requiring family change", "None", status=vkt.DataStatus.SUCCESS)
+                empty=vkt.DataItem("Fittings requiring type change", "None", status=vkt.DataStatus.SUCCESS)
             )
         )
 
@@ -235,7 +236,7 @@ class Controller(vkt.Controller):
                 subgroup=compliant_group,
             ),
             requires_change=vkt.DataItem(
-                "Requires Family Change",
+                "Requires Type Change",
                 f"{len(requires_change_rows)} fitting(s)",
                 status=vkt.DataStatus.ERROR if requires_change_rows else vkt.DataStatus.SUCCESS,
                 subgroup=requires_change_group,

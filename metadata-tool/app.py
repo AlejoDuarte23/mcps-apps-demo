@@ -12,17 +12,29 @@ logger = logging.getLogger("viktor")
 
 
 METADATA_DATABASE = {
-    "System Family: Flex Duct Round|Flex - Round": {
-        "familyName": "System Family: Flex Duct Round", "typeName": "Flex - Round", "category": "OST_FlexDuctCurves",
+    "Flex Duct Round|Flex - Round": {
+        "familyName": "Flex Duct Round", "typeName": "Flex - Round", "category": "OST_FlexDuctCurves",
         "metadataToApply": {"Manufacturer": "DemoFlex", "Model": "FLEX-RND-STD", "Keynote": "23 31 00", "Description": "Round flexible duct for supply air routing", "Assembly Code": "23.31.13.00", "Type Mark": "FD-RND-STD", "Cost": "18.50"},
     },
     "M_Rectangular to Round Duct Transition - Angle|45 Degree": {
         "familyName": "M_Rectangular to Round Duct Transition - Angle", "typeName": "45 Degree", "category": "OST_DuctFitting",
         "metadataToApply": {"Manufacturer": "DemoFab", "Model": "RTR-45", "Keynote": "23 33 00", "Description": "Rectangular to round duct transition with 45 degree angle", "Assembly Code": "23.33.13.00", "Type Mark": "DF-RTR-45", "Cost": "78.00"},
     },
-    "System Family: Rectangular Duct|Mitered Elbows / Taps": {
-        "familyName": "System Family: Rectangular Duct", "typeName": "Mitered Elbows / Taps", "category": "OST_DuctCurves",
+    "Rectangular Duct|Mitered Elbows / Taps": {
+        "familyName": "Rectangular Duct", "typeName": "Mitered Elbows / Taps", "category": "OST_DuctCurves",
         "metadataToApply": {"Manufacturer": "DemoSheetMetal", "Model": "RECT-MITER-TAP", "Keynote": "23 31 13", "Description": "Rectangular duct system type using mitered elbows and taps", "Assembly Code": "23.31.13.13", "Type Mark": "RD-MIT-TAP", "Cost": "42.00"},
+    },
+    "Rectangular Duct|Mitered Elbows / Tees": {
+        "familyName": "Rectangular Duct", "typeName": "Mitered Elbows / Tees", "category": "OST_DuctCurves",
+        "metadataToApply": {"Manufacturer": "DemoSheetMetal", "Model": "RECT-MITER-TEE", "Keynote": "23 31 13", "Description": "Rectangular duct system type using mitered elbows and tees", "Assembly Code": "23.31.13.13", "Type Mark": "RD-MIT-TEE", "Cost": "44.00"},
+    },
+    "M_Rectangular Duct Transition - Angle|45 Degree": {
+        "familyName": "M_Rectangular Duct Transition - Angle", "typeName": "45 Degree", "category": "OST_DuctFitting",
+        "metadataToApply": {"Manufacturer": "DemoFab", "Model": "RDTA-45", "Keynote": "23 33 00", "Description": "Rectangular duct transition angle fitting", "Assembly Code": "23.33.13.00", "Type Mark": "DF-RECT-TRANS-45", "Cost": "72.00"},
+    },
+    "M_Rectangular Duct Takeoff|Standard": {
+        "familyName": "M_Rectangular Duct Takeoff", "typeName": "Standard", "category": "OST_DuctFitting",
+        "metadataToApply": {"Manufacturer": "DemoFab", "Model": "RDTO-STD", "Keynote": "23 33 00", "Description": "Rectangular duct takeoff fitting", "Assembly Code": "23.33.13.00", "Type Mark": "DF-TAKEOFF-STD", "Cost": "61.00"},
     },
     "M_Rectangular Duct Tee|Standard": {
         "familyName": "M_Rectangular Duct Tee", "typeName": "Standard", "category": "OST_DuctFitting",
@@ -43,14 +55,15 @@ class Parametrization(vkt.Parametrization):
     elements = vkt.Table(
         "Revit Elements",
         default=[
-            {"system_name": "Mechanical Supply Air 17", "revit_element_id": "120001", "category": "OST_FlexDuctCurves",  "family_name": "System Family: Flex Duct Round",                    "type_name": "Flex - Round"},
-            {"system_name": "Mechanical Supply Air 17", "revit_element_id": "120006", "category": "OST_FlexDuctCurves",  "family_name": "System Family: Flex Duct Round",                    "type_name": "Flex - Round"},
+            {"system_name": "Mechanical Supply Air 17", "revit_element_id": "120001", "category": "OST_FlexDuctCurves",  "family_name": "Flex Duct Round",                                  "type_name": "Flex - Round"},
+            {"system_name": "Mechanical Supply Air 17", "revit_element_id": "120006", "category": "OST_FlexDuctCurves",  "family_name": "Flex Duct Round",                                  "type_name": "Flex - Round"},
             {"system_name": "Mechanical Supply Air 17", "revit_element_id": "120002", "category": "OST_DuctFitting",     "family_name": "M_Rectangular to Round Duct Transition - Angle",    "type_name": "45 Degree"},
             {"system_name": "Mechanical Supply Air 17", "revit_element_id": "120007", "category": "OST_DuctFitting",     "family_name": "M_Rectangular to Round Duct Transition - Angle",    "type_name": "45 Degree"},
-            {"system_name": "Mechanical Supply Air 17", "revit_element_id": "120003", "category": "OST_DuctCurves",      "family_name": "System Family: Rectangular Duct",                   "type_name": "Mitered Elbows / Taps"},
-            {"system_name": "Mechanical Supply Air 17", "revit_element_id": "120008", "category": "OST_DuctCurves",      "family_name": "System Family: Rectangular Duct",                   "type_name": "Mitered Elbows / Taps"},
+            {"system_name": "Mechanical Supply Air 17", "revit_element_id": "120003", "category": "OST_DuctCurves",      "family_name": "Rectangular Duct",                                  "type_name": "Mitered Elbows / Taps"},
+            {"system_name": "Mechanical Supply Air 17", "revit_element_id": "120008", "category": "OST_DuctCurves",      "family_name": "Rectangular Duct",                                  "type_name": "Mitered Elbows / Taps"},
             {"system_name": "Mechanical Supply Air 17", "revit_element_id": "120004", "category": "OST_DuctFitting",     "family_name": "M_Rectangular Duct Tee",                            "type_name": "Standard"},
             {"system_name": "Mechanical Supply Air 17", "revit_element_id": "120009", "category": "OST_DuctFitting",     "family_name": "M_Rectangular Duct Tee",                            "type_name": "Standard"},
+            {"system_name": "Mechanical Supply Air 17", "revit_element_id": "120010", "category": "OST_DuctTerminal",    "family_name": "M_Supply Diffuser - Rectangular Face Round Neck",   "type_name": "600x600 - 250 Neck"},
         ],
     )
     elements.system_name       = vkt.TextField("System Name")
@@ -87,9 +100,8 @@ class Controller(vkt.Controller):
         """Generate a full HTML engineering report with tables and charts."""
         enriched = [enrich_element(el, METADATA_DATABASE) for el in self.get_input_elements(params)]
         unique_types = get_unique_types(enriched)
-        compliant_count = len([el for el in enriched if el["status"] == "Compliant"])
 
-        metadata_found_count = len([el for el in enriched if el["status"] == "Metadata Found"])
+        metadata_found_count = len([el for el in enriched if el.get("_from_database", False)])
         logger.info(f"WebView: total={len(enriched)}, unique={len(unique_types)}, metadata_found={metadata_found_count}")
 
         # --- Chart 2: Plotly Pie chart – distribution by type name ---
@@ -125,7 +137,7 @@ class Controller(vkt.Controller):
         data = vkt.DataGroup()
         for i, ut in enumerate(unique_types):
             status = ut["status"]
-            ds = vkt.DataStatus.SUCCESS if status == "Metadata Found" else vkt.DataStatus.WARNING
+            ds = vkt.DataStatus.SUCCESS
 
             type_group = vkt.DataGroup(
                 family_name=vkt.DataItem("Family Name", ut["familyName"]),
@@ -148,7 +160,7 @@ class Controller(vkt.Controller):
         enriched = [enrich_element(el, METADATA_DATABASE) for el in self.get_input_elements(params)]
         unique_types = get_unique_types(enriched)
 
-        metadata_found_count = len([el for el in enriched if el["status"] == "Metadata Found"])
+        metadata_found_count = len([el for el in enriched if el.get("_from_database", False)])
         logger.info(f"📄 PDF Download: total={len(enriched)}, unique={len(unique_types)}, metadata_found={metadata_found_count}")
 
         # Build charts
@@ -222,7 +234,6 @@ class Controller(vkt.Controller):
             ["Total Elements", str(len(enriched))],
             ["Unique Types", str(len(unique_types))],
             ["Types with Metadata Found", str(metadata_found_count)],
-            ["Types Not in Database", str(not_in_db_count)],
         ]
         summary_table = Table(summary_data, colWidths=[80 * mm, 40 * mm])
         summary_table.setStyle(TableStyle([
@@ -259,7 +270,6 @@ class Controller(vkt.Controller):
         story.append(Paragraph("2. Element Instance Metadata", h2_style))
         story.append(Paragraph(
             "Complete listing of all analyzed Revit element instances with enriched metadata properties. "
-            "Rows highlighted in coral indicate elements that could not be matched to the database and are missing metadata. "
             "This table includes system assignment, category classification, and all available metadata fields.",
             body_style
         ))
@@ -294,10 +304,7 @@ class Controller(vkt.Controller):
             ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ]
-        # Highlight "Not in Database" rows in soft coral
-        for row_idx, el in enumerate(enriched, start=1):
-            if el["status"] == "Not in Database":
-                inst_style.append(("BACKGROUND", (0, row_idx), (-1, row_idx), colors.HexColor("#FFE5E0")))
+        # All rows use default alternating background colors
         inst_table.setStyle(TableStyle(inst_style))
         story.append(inst_table)
         story.append(Spacer(1, 6 * mm))
@@ -341,8 +348,7 @@ class Controller(vkt.Controller):
         story.append(Paragraph("4. Unique Types Metadata Summary", h2_style))
         story.append(Paragraph(
             "This section consolidates metadata for all unique family-type combinations found in the project. "
-            "Each unique type represents a distinct element configuration that may appear multiple times in the model. "
-            "Rows highlighted in coral indicate types that require database entries or manual metadata assignment.",
+            "Each unique type represents a distinct element configuration that may appear multiple times in the model.",
             body_style
         ))
         story.append(Spacer(1, 2 * mm))
@@ -374,9 +380,7 @@ class Controller(vkt.Controller):
             ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ]
-        for row_idx, ut in enumerate(unique_types, start=1):
-            if ut["status"] == "Not in Database":
-                ut_style.append(("BACKGROUND", (0, row_idx), (-1, row_idx), colors.HexColor("#FFE5E0")))
+        # All rows use default alternating background colors
         ut_table.setStyle(TableStyle(ut_style))
         story.append(ut_table)
         story.append(Spacer(1, 6 * mm))

@@ -14,13 +14,7 @@ matplotlib.use("Agg")
 
 logger = logging.getLogger("viktor")
 
-REQUIRED_FAMILY_NAME = "M_Rectangular to Round Duct Transsition - Angle"
-COMPANY_STANDARD_FAMILIES = {
-    REQUIRED_FAMILY_NAME,
-    "M_Rectangular Duct Tee",
-    "M_Rectangular Elbow",
-}
-WRONG_FAMILY_TOKENS = ("m_round duct transition - angle", "m_round")
+REQUIRED_TYPE_NAME = "45 Degree"
 
 
 def to_float(value) -> float:
@@ -62,46 +56,28 @@ def normalize_rows(rows: list) -> list[dict]:
 def analyze_fittings(rows: list[dict]) -> dict:
     results = []
     for row in rows:
-        family_name = row["family_name"]
-        family_name_lower = family_name.lower()
-        is_company_standard = family_name in COMPANY_STANDARD_FAMILIES
-        is_wrong_family = any(token in family_name_lower for token in WRONG_FAMILY_TOKENS)
-        pressure_drop = row["pressure_drop"]
-        pressure_missing = math.isnan(pressure_drop)
-        pressure_zero = not pressure_missing and pressure_drop == 0
-        pressure_issue = pressure_missing or pressure_zero
-        is_compliant = is_company_standard and not is_wrong_family and not pressure_issue
+        type_name = row["type_name"]
+        type_name_lower = type_name.lower()
+        requires_type_change = "30°" in type_name_lower or "30" in type_name_lower
+        pressure_issue = False
+        is_compliant = not requires_type_change
 
         results.append(
             {
                 **row,
-                "is_company_standard": is_company_standard,
-                "is_wrong_family": is_wrong_family,
-                "recommended_family": REQUIRED_FAMILY_NAME if is_wrong_family else "OK",
+                "requires_type_change": requires_type_change,
+                "recommended_type": REQUIRED_TYPE_NAME if requires_type_change else "OK",
                 "pressure_issue": pressure_issue,
-                "pressure_issue_reason": (
-                    "Pressure drop is NaN"
-                    if pressure_missing
-                    else "Pressure drop is 0"
-                    if pressure_zero
-                    else "OK"
-                ),
-                "family_issue_reason": (
-                    "Family should be changed to company standard transition family"
-                    if is_wrong_family
-                    else "Family is not in company standard"
-                    if not is_company_standard
-                    else "OK"
-                ),
-                "pressure_drop_label": format_pressure_drop(pressure_drop),
+                "pressure_issue_reason": "OK",
+                "type_issue_reason": "Type contains 30 and should be changed to 45 Degree" if requires_type_change else "OK",
+                "pressure_drop_label": format_pressure_drop(row["pressure_drop"]),
                 "short_revit_id": row["revit_element_id"][-3:] if len(row["revit_element_id"]) >= 3 else row["revit_element_id"],
                 "is_compliant": is_compliant,
             }
         )
 
-    requires_change = [row for row in results if not row["is_company_standard"] or row["is_wrong_family"]]
-    wrong_family = [row for row in results if row["is_wrong_family"]]
-    pressure_issues = [row for row in results if row["pressure_issue"]]
+    requires_change = [row for row in results if row["requires_type_change"]]
+    pressure_issues = []
     compliant_rows = [row for row in results if row["is_compliant"]]
     non_compliant_rows = [row for row in results if not row["is_compliant"]]
     family_counter = Counter(row["family_name"] or "Unknown" for row in results)
@@ -111,21 +87,19 @@ def analyze_fittings(rows: list[dict]) -> dict:
         "compliant_count": len(compliant_rows),
         "non_compliant_count": len(non_compliant_rows),
         "requires_change_count": len(requires_change),
-        "pressure_issue_count": len(pressure_issues),
+        "pressure_issue_count": 0,
     }
 
     logger.info(
-        "Fitting analysis: total=%s compliant=%s requires_change=%s pressure_issues=%s",
+        "Fitting analysis: total=%s compliant=%s requires_type_change=%s",
         summary["total"],
         summary["compliant_count"],
         summary["requires_change_count"],
-        summary["pressure_issue_count"],
     )
 
     return {
         "rows": results,
         "requires_change": requires_change,
-        "wrong_family": wrong_family,
         "pressure_issues": pressure_issues,
         "compliant_rows": compliant_rows,
         "non_compliant_rows": non_compliant_rows,
@@ -290,8 +264,7 @@ def build_html_report(analysis: dict) -> str:
             f"<tr><td>Total fittings</td><td><strong>{summary['total']}</strong></td></tr>",
             f"<tr><td>Compliant fittings</td><td><strong>{summary['compliant_count']}</strong></td></tr>",
             f"<tr><td>Non compliant fittings</td><td><strong>{summary['non_compliant_count']}</strong></td></tr>",
-            f"<tr><td>Family changes required</td><td><strong>{summary['requires_change_count']}</strong></td></tr>",
-            f"<tr><td>Pressure drop issues</td><td><strong>{summary['pressure_issue_count']}</strong></td></tr>",
+            f"<tr><td>Type changes required</td><td><strong>{summary['requires_change_count']}</strong></td></tr>",
         ]
     )
 
@@ -310,13 +283,13 @@ def build_html_report(analysis: dict) -> str:
 
     pressure_rows_html = ""
     for row in rows:
-        row_class = "row-danger" if row["pressure_issue"] else ""
+        row_class = "row-danger" if row["requires_type_change"] else ""
         pressure_rows_html += (
             f"<tr class='{row_class}'>"
             f"<td>{row['revit_element_id']}</td>"
             f"<td>{row['family_name']}</td>"
-            f"<td>{row['pressure_drop_label']}</td>"
-            f"<td>{row['pressure_issue_reason']}</td>"
+            f"<td>{row['type_name'] or 'N/A'}</td>"
+            f"<td>{row['type_issue_reason']}</td>"
             f"</tr>"
         )
 
@@ -328,7 +301,7 @@ def build_html_report(analysis: dict) -> str:
             f"<td>{row['revit_element_id']}</td>"
             f"<td>{row['family_name']}</td>"
             f"<td>{row['type_name'] or 'N/A'}</td>"
-            f"<td>{row['recommended_family']}</td>"
+            f"<td>{row['recommended_type']}</td>"
             f"</tr>"
         )
 
@@ -338,7 +311,7 @@ def build_html_report(analysis: dict) -> str:
     html = html.replace("__INPUT_ROWS__", input_rows_html or "<tr><td colspan='5'>No input rows</td></tr>")
     html = html.replace(
         "__PRESSURE_ROWS__",
-        pressure_rows_html or "<tr><td colspan='4'>No pressure drop issues found</td></tr>",
+        pressure_rows_html or "<tr><td colspan='4'>No type changes required</td></tr>",
     )
     html = html.replace(
         "__WRONG_FAMILY_ROWS__",
@@ -348,7 +321,7 @@ def build_html_report(analysis: dict) -> str:
     html = html.replace("__PLOTLY_PIE_CHART__", build_plotly_family_pie(analysis["family_counter"]))
     html = html.replace("__TOTAL_COUNT__", str(summary["total"]))
     html = html.replace("__WRONG_FAMILY_COUNT__", str(len(requires_change)))
-    html = html.replace("__PRESSURE_ISSUE_COUNT__", str(len(pressure_issues)))
+    html = html.replace("__PRESSURE_ISSUE_COUNT__", str(len(requires_change)))
     return html
 
 
@@ -388,14 +361,14 @@ def build_pdf_report(analysis: dict) -> bytes:
         Paragraph(f"Engineering Report - Generated on {today_str}", body_style),
         Spacer(1, 3 * mm),
         Paragraph(
-            "This report provides a comprehensive analysis of duct fitting elements to ensure compliance with company "
-            "standards and proper engineering specifications. The analysis includes validation of Revit family assignments, "
-            "pressure drop calculations, and identification of elements requiring corrective action.",
+            "This report provides a comprehensive analysis of duct fitting elements to ensure the fitting type names "
+            "meet the project QA QC rule. The analysis identifies fittings whose type contains 30 or 30 degrees and "
+            "therefore should be changed to 45 Degree.",
             intro_style
         ),
         Paragraph(
-            "The quality assurance checks performed in this report verify that all fittings use approved company standard "
-            "Revit families and that pressure drop values are properly assigned for accurate system calculations.",
+            "The quality assurance checks performed in this report verify that non compliant type names are flagged "
+            "clearly and grouped for direct corrective action in Revit.",
             intro_style
         ),
         Spacer(1, 4 * mm),
@@ -408,8 +381,7 @@ def build_pdf_report(analysis: dict) -> bytes:
             ["Total fittings", str(summary["total"])],
             ["Compliant fittings", str(summary["compliant_count"])],
             ["Non compliant fittings", str(summary["non_compliant_count"])],
-            ["Family changes required", str(summary["requires_change_count"])],
-            ["Pressure drop issues", str(summary["pressure_issue_count"])],
+            ["Type changes required", str(summary["requires_change_count"])],
         ],
         colWidths=[70 * mm, 35 * mm],
     )
@@ -443,8 +415,7 @@ def build_pdf_report(analysis: dict) -> bytes:
     )
     if summary["non_compliant_count"] > 0:
         status_text += (
-            f"<b>Action Required:</b> {summary['requires_change_count']} fitting(s) require family reassignment and "
-            f"{summary['pressure_issue_count']} fitting(s) have pressure drop issues that must be resolved."
+            f"<b>Action Required:</b> {summary['requires_change_count']} fitting(s) require a type change to {REQUIRED_TYPE_NAME}."
         )
     else:
         status_text += "<b>Status:</b> All fittings meet compliance requirements."
@@ -457,9 +428,8 @@ def build_pdf_report(analysis: dict) -> bytes:
     story.append(Paragraph("2. Visual Analysis", h2_style))
     story.append(
         Paragraph(
-            "<b>Pressure Drop Analysis (Left):</b> Bar chart showing pressure drop values for each fitting element. "
-            "Red bars indicate fittings with missing or zero pressure drop values that require correction. "
-            "Blue bars represent fittings with valid pressure drop data.",
+            "<b>Pressure Drop Plot (Left):</b> Bar chart showing pressure drop values for each fitting element. "
+            "This stays in the report for engineering context only and does not drive the QA QC rule.",
             body_style
         )
     )
@@ -511,34 +481,31 @@ def build_pdf_report(analysis: dict) -> bytes:
     story.append(input_table)
     story.append(Spacer(1, 4 * mm))
 
-    story.append(Paragraph("4. Pressure Drop Validation", h2_style))
+    story.append(Paragraph("4. Type Angle Validation", h2_style))
     story.append(
         Paragraph(
-            "This section validates that all fitting elements have appropriate pressure drop values assigned. "
-            "Pressure drop calculations are essential for accurate HVAC system performance analysis. "
-            "Elements with NaN (Not a Number) or zero values require pressure drop data to be entered in Revit.",
+            "This section validates the fitting type names. "
+            "Any fitting whose type contains 30 or 30 degrees is flagged and should be updated to 45 Degree.",
             body_style
         )
     )
     story.append(Spacer(1, 2 * mm))
-
-    pressure_ok_count = len([r for r in analysis["rows"] if not r["pressure_issue"]])
     story.append(
         Paragraph(
-            f"<b>Results:</b> {pressure_ok_count} of {summary['total']} fittings have valid pressure drop values. "
-            f"{summary['pressure_issue_count']} fitting(s) require correction.",
+            f"<b>Results:</b> {summary['compliant_count']} of {summary['total']} fittings are compliant. "
+            f"{summary['requires_change_count']} fitting(s) require a type change.",
             body_style
         )
     )
     story.append(Spacer(1, 2 * mm))
-    pressure_rows = [["Revit Element ID", "Family", "Pressure Drop", "Status"]]
+    pressure_rows = [["Revit Element ID", "Family", "Type", "Status"]]
     for row in analysis["rows"]:
         pressure_rows.append(
             [
                 row["revit_element_id"],
                 Paragraph(row["family_name"], small_style),
-                row["pressure_drop_label"],
-                row["pressure_issue_reason"],
+                row["type_name"] or "N/A",
+                row["type_issue_reason"],
             ]
         )
     pressure_table = Table(pressure_rows, colWidths=[38 * mm, 82 * mm, 30 * mm, 55 * mm], repeatRows=1)
@@ -549,41 +516,37 @@ def build_pdf_report(analysis: dict) -> bytes:
         ("FONTSIZE", (0, 0), (-1, -1), 7),
     ]
     for idx, row in enumerate(analysis["rows"], start=1):
-        if row["pressure_issue"]:
+        if row["requires_type_change"]:
             pressure_style.append(("BACKGROUND", (0, idx), (-1, idx), colors.HexColor("#FFE5E0")))
     pressure_table.setStyle(TableStyle(pressure_style))
     story.append(pressure_table)
     story.append(Spacer(1, 4 * mm))
 
-    story.append(Paragraph("5. Family Compliance Review", h2_style))
+    story.append(Paragraph("5. Type Change Review", h2_style))
     story.append(
         Paragraph(
-            "This section identifies fitting elements that do not use company standard Revit families. "
-            f"The approved company standard for transition fittings is <b>{REQUIRED_FAMILY_NAME}</b>. "
-            "Elements using non-standard families should be updated to maintain consistency across the project and "
-            "ensure accurate pressure drop calculations.",
+            "This section identifies fitting elements whose type names contain 30 or 30 degrees. "
+            f"Those fittings should be updated to <b>{REQUIRED_TYPE_NAME}</b>.",
             body_style
         )
     )
     story.append(Spacer(1, 2 * mm))
-
-    family_ok_count = len([r for r in analysis["rows"] if r["is_company_standard"] and not r["is_wrong_family"]])
     story.append(
         Paragraph(
-            f"<b>Results:</b> {family_ok_count} of {summary['total']} fittings use company standard families. "
-            f"{summary['requires_change_count']} fitting(s) require family reassignment.",
+            f"<b>Results:</b> {summary['compliant_count']} of {summary['total']} fittings are compliant. "
+            f"{summary['requires_change_count']} fitting(s) require a type change to {REQUIRED_TYPE_NAME}.",
             body_style
         )
     )
     story.append(Spacer(1, 2 * mm))
-    family_rows = [["Revit Element ID", "Current Family", "Type", "Family To Assign"]]
+    family_rows = [["Revit Element ID", "Current Family", "Current Type", "Type To Assign"]]
     for row in analysis["rows"]:
         family_rows.append(
             [
                 row["revit_element_id"],
                 Paragraph(row["family_name"], small_style),
                 Paragraph(row["type_name"] or "N/A", small_style),
-                Paragraph(row["recommended_family"], small_style),
+                Paragraph(row["recommended_type"], small_style),
             ]
         )
     family_table = Table(family_rows, colWidths=[38 * mm, 75 * mm, 40 * mm, 75 * mm], repeatRows=1)
@@ -606,24 +569,19 @@ def build_pdf_report(analysis: dict) -> bytes:
     recommendations = []
     if summary["requires_change_count"] > 0:
         recommendations.append(
-            f"• Update {summary['requires_change_count']} fitting element(s) to use the company standard "
-            f"Revit family ({REQUIRED_FAMILY_NAME}) as identified in Section 5."
-        )
-    if summary["pressure_issue_count"] > 0:
-        recommendations.append(
-            f"• Assign valid pressure drop values to {summary['pressure_issue_count']} fitting element(s) "
-            "that currently have missing or zero values (see Section 4 for details)."
+            f"• Update {summary['requires_change_count']} fitting element(s) to use the type "
+            f"{REQUIRED_TYPE_NAME} as identified in Section 5."
         )
     if summary["compliant_count"] == summary["total"]:
         recommendations.append(
-            "• All fittings are compliant with company standards. No corrective action required at this time."
+            "• All fittings are compliant with the type angle rule. No corrective action required at this time."
         )
     else:
         recommendations.append(
             "• After making corrections in Revit, re-export the fitting data and regenerate this report to verify compliance."
         )
         recommendations.append(
-            "• Maintain consistent use of company standard families for all future duct fitting placements."
+            "• Maintain consistent use of 45 Degree fitting types where the design intent requires that angle."
         )
 
     for rec in recommendations:
