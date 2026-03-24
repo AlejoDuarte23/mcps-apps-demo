@@ -42,11 +42,13 @@ def enrich_element(element: dict, metadata_database: dict) -> dict:
     if db_entry:
         enriched.update(db_entry["metadataToApply"])
         enriched["familyName"] = normalize_family_name(enriched["familyName"])
-        enriched["status"] = "Metadata Found"
+        enriched["status"] = "Metadata to add"
+        enriched["_from_database"] = True
     else:
         enriched["familyName"] = normalize_family_name(enriched["familyName"])
         enriched.update(build_fallback_metadata(enriched))
-        enriched["status"] = "Fallback Metadata"
+        enriched["status"] = "Metadata to add"
+        enriched["_from_database"] = False
     return enriched
 
 
@@ -168,13 +170,12 @@ def build_html_report(
         ("Total Elements", len(enriched)),
         ("Unique Types", len(unique_types)),
         ("Types with Metadata Found", metadata_found_count),
-        ("Types Not in Database", not_in_db_count),
     ]
     summary_html = "".join(f"<tr><td>{label}</td><td><strong>{value}</strong></td></tr>" for label, value in summary_rows)
 
     instance_rows_html = ""
     for element in enriched:
-        row_style = ' style="background-color: #FFE5E0;"' if element["status"] == "Not in Database" else ""
+        row_style = ""
         instance_rows_html += (
             f"<tr{row_style}>"
             f"<td>{element['revitElementId']}</td>"

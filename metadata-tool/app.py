@@ -100,9 +100,8 @@ class Controller(vkt.Controller):
         """Generate a full HTML engineering report with tables and charts."""
         enriched = [enrich_element(el, METADATA_DATABASE) for el in self.get_input_elements(params)]
         unique_types = get_unique_types(enriched)
-        compliant_count = len([el for el in enriched if el["status"] == "Compliant"])
 
-        metadata_found_count = len([el for el in enriched if el["status"] == "Metadata Found"])
+        metadata_found_count = len([el for el in enriched if el.get("_from_database", False)])
         logger.info(f"WebView: total={len(enriched)}, unique={len(unique_types)}, metadata_found={metadata_found_count}")
 
         # --- Chart 2: Plotly Pie chart – distribution by type name ---
@@ -138,7 +137,7 @@ class Controller(vkt.Controller):
         data = vkt.DataGroup()
         for i, ut in enumerate(unique_types):
             status = ut["status"]
-            ds = vkt.DataStatus.SUCCESS if status == "Metadata Found" else vkt.DataStatus.WARNING
+            ds = vkt.DataStatus.SUCCESS
 
             type_group = vkt.DataGroup(
                 family_name=vkt.DataItem("Family Name", ut["familyName"]),
@@ -161,7 +160,7 @@ class Controller(vkt.Controller):
         enriched = [enrich_element(el, METADATA_DATABASE) for el in self.get_input_elements(params)]
         unique_types = get_unique_types(enriched)
 
-        metadata_found_count = len([el for el in enriched if el["status"] == "Metadata Found"])
+        metadata_found_count = len([el for el in enriched if el.get("_from_database", False)])
         logger.info(f"📄 PDF Download: total={len(enriched)}, unique={len(unique_types)}, metadata_found={metadata_found_count}")
 
         # Build charts
@@ -235,7 +234,6 @@ class Controller(vkt.Controller):
             ["Total Elements", str(len(enriched))],
             ["Unique Types", str(len(unique_types))],
             ["Types with Metadata Found", str(metadata_found_count)],
-            ["Types Not in Database", str(not_in_db_count)],
         ]
         summary_table = Table(summary_data, colWidths=[80 * mm, 40 * mm])
         summary_table.setStyle(TableStyle([
@@ -272,7 +270,6 @@ class Controller(vkt.Controller):
         story.append(Paragraph("2. Element Instance Metadata", h2_style))
         story.append(Paragraph(
             "Complete listing of all analyzed Revit element instances with enriched metadata properties. "
-            "Rows highlighted in coral indicate elements that could not be matched to the database and are missing metadata. "
             "This table includes system assignment, category classification, and all available metadata fields.",
             body_style
         ))
@@ -307,10 +304,7 @@ class Controller(vkt.Controller):
             ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ]
-        # Highlight "Not in Database" rows in soft coral
-        for row_idx, el in enumerate(enriched, start=1):
-            if el["status"] == "Not in Database":
-                inst_style.append(("BACKGROUND", (0, row_idx), (-1, row_idx), colors.HexColor("#FFE5E0")))
+        # All rows use default alternating background colors
         inst_table.setStyle(TableStyle(inst_style))
         story.append(inst_table)
         story.append(Spacer(1, 6 * mm))
@@ -354,8 +348,7 @@ class Controller(vkt.Controller):
         story.append(Paragraph("4. Unique Types Metadata Summary", h2_style))
         story.append(Paragraph(
             "This section consolidates metadata for all unique family-type combinations found in the project. "
-            "Each unique type represents a distinct element configuration that may appear multiple times in the model. "
-            "Rows highlighted in coral indicate types that require database entries or manual metadata assignment.",
+            "Each unique type represents a distinct element configuration that may appear multiple times in the model.",
             body_style
         ))
         story.append(Spacer(1, 2 * mm))
@@ -387,9 +380,7 @@ class Controller(vkt.Controller):
             ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ]
-        for row_idx, ut in enumerate(unique_types, start=1):
-            if ut["status"] == "Not in Database":
-                ut_style.append(("BACKGROUND", (0, row_idx), (-1, row_idx), colors.HexColor("#FFE5E0")))
+        # All rows use default alternating background colors
         ut_table.setStyle(TableStyle(ut_style))
         story.append(ut_table)
         story.append(Spacer(1, 6 * mm))
