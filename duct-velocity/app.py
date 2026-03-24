@@ -95,8 +95,8 @@ class Parametrization(vkt.Parametrization):
         "- λ = 0.02 for rigid ducts, λ = 0.035 for flex ducts\n\n"
         "**④ Optimization Proposal (all ducts):**\n"
         "- Back-calculate minimum required diameter: `D_min = √(4Q / (π × V_max))`\n"
-        "- Suggest the next standard duct size from: `[100, 125, 150, 160, 200, 250, 315, 400, 500]` mm\n"
-        "- For rigid rectangular ducts the demo proposes a square target size such as `200 x 200 mm`"
+        "- Suggest the next standard duct size based on duct type (flex, round rigid, or rectangular)\n"
+        "- Proposes optimal size combination to minimize area while meeting velocity limits"
     )
 
     # ── 6. Export explanation ──────────────────────────────────────────────
@@ -186,7 +186,7 @@ class Controller(vkt.Controller):
     @vkt.DataView("Flex Duct — Compliance Summary")
     def qa_qc_flex_duct_checks(self, params, **kwargs) -> vkt.DataResult:
         """
-        DataView showing Flex Duct compliance status.
+        DataView showing Flex Duct compliance status and optimization opportunities.
         """
         duct_rows = list(params.duct_table) if params.duct_table else []
         system_type = params.system_type or "Supply"
@@ -197,23 +197,34 @@ class Controller(vkt.Controller):
         flex_compliant = [r for r in flex_all if r["status"] == "COMPLIANT"]
         flex_non_compliant = [r for r in flex_all if r["status"] in ("OVERSIZE", "INCONSISTENT")]
 
-        logger.info(f"Flex ducts — Compliant: {len(flex_compliant)}, Non-compliant: {len(flex_non_compliant)}")
+        # Split compliant into: can be optimized vs already optimal
+        flex_can_optimize = [r for r in flex_compliant if r["optimization"] != "—"]
 
-        # Compliant group
-        compliant_group = (
-            vkt.DataGroup(
-                **{
-                    f"compliant_{i}": vkt.DataItem(
-                        r["revit_id"],
-                        "Compliant",
-                        status=vkt.DataStatus.SUCCESS,
-                    )
-                    for i, r in enumerate(flex_compliant)
-                }
+        logger.info(f"Flex ducts — Can optimize: {len(flex_can_optimize)}, Requires resizing: {len(flex_non_compliant)}")
+
+        # Compliant and can be optimized group
+        def make_flex_can_optimize_item(i, r):
+            return vkt.DataItem(
+                r["revit_id"],
+                "Can be optimized",
+                status=vkt.DataStatus.SUCCESS,
+                subgroup=vkt.DataGroup(
+                    system_name=vkt.DataItem("System Name", r["system_name"] or "—"),
+                    type=vkt.DataItem("Type", r["duct_type"]),
+                    current_size=vkt.DataItem("Current Size (Diameter)", r["current_size_label"]),
+                    optimized_size=vkt.DataItem("Optimized Size (Diameter)", r["optimization"] if r["optimization"] != "—" else "No optimization available"),
+                    current_velocity=vkt.DataItem("Current Velocity", f"{r['v_measured']:.2f} m/s"),
+                    expected_velocity=vkt.DataItem("Expected Velocity after Optimization", f"{r['v_new']:.2f} m/s" if r["v_new"] is not None else "—"),
+                ),
             )
-            if flex_compliant
+
+        can_optimize_group = (
+            vkt.DataGroup(
+                **{f"can_optimize_{i}": make_flex_can_optimize_item(i, r) for i, r in enumerate(flex_can_optimize)}
+            )
+            if flex_can_optimize
             else vkt.DataGroup(
-                empty=vkt.DataItem("Compliant flex ducts", "None", status=vkt.DataStatus.WARNING)
+                empty=vkt.DataItem("Ducts that can be optimized", "None — all ducts already optimal", status=vkt.DataStatus.SUCCESS)
             )
         )
 
@@ -242,13 +253,13 @@ class Controller(vkt.Controller):
         )
 
         data = vkt.DataGroup(
-            compliant=vkt.DataItem(
-                "Compliant Flex Ducts",
-                f"{len(flex_compliant)} duct(s)",
-                status=vkt.DataStatus.SUCCESS if flex_compliant else vkt.DataStatus.WARNING,
-                subgroup=compliant_group,
+            can_optimize=vkt.DataItem(
+                "Compliant — Can be Optimized",
+                f"{len(flex_can_optimize)} duct(s)",
+                status=vkt.DataStatus.SUCCESS if flex_can_optimize else vkt.DataStatus.WARNING,
+                subgroup=can_optimize_group,
             ),
-            non_compliant=vkt.DataItem(
+            requires_resizing=vkt.DataItem(
                 "Requires Resizing",
                 f"{len(flex_non_compliant)} duct(s)",
                 status=vkt.DataStatus.ERROR if flex_non_compliant else vkt.DataStatus.SUCCESS,
@@ -260,7 +271,7 @@ class Controller(vkt.Controller):
     @vkt.DataView("Rigid Duct — Compliance Summary")
     def qa_qc_rigid_duct_checks(self, params, **kwargs) -> vkt.DataResult:
         """
-        DataView showing Rigid Duct compliance status.
+        DataView showing Rigid Duct compliance status and optimization opportunities.
         """
         duct_rows = list(params.duct_table) if params.duct_table else []
         system_type = params.system_type or "Supply"
@@ -271,23 +282,38 @@ class Controller(vkt.Controller):
         rigid_compliant = [r for r in rigid_all if r["status"] == "COMPLIANT"]
         rigid_non_compliant = [r for r in rigid_all if r["status"] in ("OVERSIZE", "INCONSISTENT")]
 
-        logger.info(f"Rigid ducts — Compliant: {len(rigid_compliant)}, Non-compliant: {len(rigid_non_compliant)}")
+        # Split compliant into: can be optimized vs already optimal
+        rigid_can_optimize = [r for r in rigid_compliant if r["optimization"] != "—"]
 
-        # Compliant group
-        compliant_group = (
-            vkt.DataGroup(
-                **{
-                    f"compliant_{i}": vkt.DataItem(
-                        r["revit_id"],
-                        "Compliant",
-                        status=vkt.DataStatus.SUCCESS,
-                    )
-                    for i, r in enumerate(rigid_compliant)
-                }
+        logger.info(f"Rigid ducts — Can optimize: {len(rigid_can_optimize)}, Requires resizing: {len(rigid_non_compliant)}")
+
+        # Compliant and can be optimized group
+        def make_can_optimize_item(i, r):
+            is_round = "round" in r["duct_type"].lower()
+            current_label = "Current Size (Diameter)" if is_round else "Current Size (Width x Height)"
+            proposed_label = "Optimized Size (Diameter)" if is_round else "Optimized Size (Width x Height)"
+
+            return vkt.DataItem(
+                r["revit_id"],
+                "Can be optimized",
+                status=vkt.DataStatus.SUCCESS,
+                subgroup=vkt.DataGroup(
+                    system_name=vkt.DataItem("System Name", r["system_name"] or "—"),
+                    type=vkt.DataItem("Type", r["duct_type"]),
+                    current_size=vkt.DataItem(current_label, r["current_size_label"]),
+                    optimized_size=vkt.DataItem(proposed_label, r["optimization"] if r["optimization"] != "—" else "No optimization available"),
+                    current_velocity=vkt.DataItem("Current Velocity", f"{r['v_measured']:.2f} m/s"),
+                    expected_velocity=vkt.DataItem("Expected Velocity after Optimization", f"{r['v_new']:.2f} m/s" if r["v_new"] is not None else "—"),
+                ),
             )
-            if rigid_compliant
+
+        can_optimize_group = (
+            vkt.DataGroup(
+                **{f"can_optimize_{i}": make_can_optimize_item(i, r) for i, r in enumerate(rigid_can_optimize)}
+            )
+            if rigid_can_optimize
             else vkt.DataGroup(
-                empty=vkt.DataItem("Compliant rigid ducts", "None", status=vkt.DataStatus.WARNING)
+                empty=vkt.DataItem("Ducts that can be optimized", "None — all ducts already optimal", status=vkt.DataStatus.SUCCESS)
             )
         )
 
@@ -320,13 +346,13 @@ class Controller(vkt.Controller):
         )
 
         data = vkt.DataGroup(
-            compliant=vkt.DataItem(
-                "Compliant Rigid Ducts",
-                f"{len(rigid_compliant)} duct(s)",
-                status=vkt.DataStatus.SUCCESS if rigid_compliant else vkt.DataStatus.WARNING,
-                subgroup=compliant_group,
+            can_optimize=vkt.DataItem(
+                "Compliant — Can be Optimized",
+                f"{len(rigid_can_optimize)} duct(s)",
+                status=vkt.DataStatus.SUCCESS if rigid_can_optimize else vkt.DataStatus.WARNING,
+                subgroup=can_optimize_group,
             ),
-            non_compliant=vkt.DataItem(
+            requires_resizing=vkt.DataItem(
                 "Requires Resizing",
                 f"{len(rigid_non_compliant)} duct(s)",
                 status=vkt.DataStatus.ERROR if rigid_non_compliant else vkt.DataStatus.SUCCESS,

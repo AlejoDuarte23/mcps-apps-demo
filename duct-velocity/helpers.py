@@ -13,7 +13,11 @@ AIR_DENSITY = 1.2
 FRICTION_FACTOR_RIGID = 0.02
 FRICTION_FACTOR_FLEX = 0.035
 DEFAULT_DUCT_LENGTH = 1.0
-STANDARD_DUCT_SIZES = [100, 125, 150, 160, 200, 250, 315, 400, 500]
+FLEX_DUCT_SIZES = [75, 100, 125, 150, 200, 225, 250, 300, 350]
+ROUND_RIGID_DUCT_SIZES = [100, 125, 150, 160, 200, 250, 315, 400, 500]
+RECTANGULAR_DUCT_SIZES = [200, 225, 250, 275, 300, 325, 350, 375, 400, 425, 475, 500, 600, 650]
+# For sizes above 650, add increments of 50: 700, 750, 800, etc.
+RECTANGULAR_DUCT_SIZES.extend(range(700, 1500, 50))
 VELOCITY_INCONSISTENCY_THRESHOLD = 0.5
 AIR_VISCOSITY = 1.81e-5
 
@@ -24,9 +28,9 @@ REFERENCE_VELOCITY_LIMITS: list[dict] = [
     {"duct_type": "Rigid Duct (Round)", "system_type": "Supply", "v_max": 6.0, "nc_limit": 35},
     {"duct_type": "Rigid Duct (Round)", "system_type": "Return", "v_max": 5.0, "nc_limit": 35},
     {"duct_type": "Rigid Duct (Round)", "system_type": "Exhaust", "v_max": 5.5, "nc_limit": 40},
-    {"duct_type": "Rigid Duct (Rectangular)", "system_type": "Supply", "v_max": 8.0, "nc_limit": 35},
-    {"duct_type": "Rigid Duct (Rectangular)", "system_type": "Return", "v_max": 6.0, "nc_limit": 35},
-    {"duct_type": "Rigid Duct (Rectangular)", "system_type": "Exhaust", "v_max": 7.0, "nc_limit": 40},
+    {"duct_type": "Rigid Duct (Rectangular)", "system_type": "Supply", "v_max": 6.0, "nc_limit": 35},
+    {"duct_type": "Rigid Duct (Rectangular)", "system_type": "Return", "v_max": 4.0, "nc_limit": 35},
+    {"duct_type": "Rigid Duct (Rectangular)", "system_type": "Exhaust", "v_max": 5.0, "nc_limit": 40},
 ]
 
 VELOCITY_LOOKUP: dict[tuple[str, str], tuple[float, int]] = {
@@ -67,8 +71,14 @@ def pressure_drop(duct_type: str, diameter_mm: float, v_measured: float) -> floa
     return lam * (DEFAULT_DUCT_LENGTH / d_m) * (AIR_DENSITY * v_measured ** 2 / 2.0)
 
 
-def next_standard_size(d_min_mm: float) -> int | None:
-    for size in STANDARD_DUCT_SIZES:
+def next_standard_size(d_min_mm: float, duct_type: str) -> int | None:
+    """Find the next standard size for round or flex ducts."""
+    if is_flex(duct_type):
+        sizes = FLEX_DUCT_SIZES
+    else:
+        sizes = ROUND_RIGID_DUCT_SIZES
+
+    for size in sizes:
         if size >= d_min_mm:
             return size
     return None
@@ -78,6 +88,39 @@ def d_min(q_ls: float, v_max: float) -> float:
     if v_max <= 0:
         return 0.0
     return math.sqrt(4.0 * (q_ls / 1000.0) / (math.pi * v_max)) * 1000.0
+
+
+def find_optimal_rectangular_size(q_ls: float, v_max: float) -> tuple[int | None, int | None]:
+    """Find the optimal width x height for rectangular duct from standard sizes."""
+    if v_max <= 0:
+        return None, None
+
+    # Calculate minimum required area
+    min_area_m2 = (q_ls / 1000.0) / v_max
+
+    # Try to find the smallest rectangular duct that meets the requirement
+    best_width = None
+    best_height = None
+    best_area = float('inf')
+
+    for width in RECTANGULAR_DUCT_SIZES:
+        for height in RECTANGULAR_DUCT_SIZES:
+            # Calculate area in m²
+            area_m2 = (width / 1000.0) * (height / 1000.0)
+
+            # Check if this meets the minimum area requirement
+            if area_m2 >= min_area_m2:
+                # Prefer sizes closer to the minimum (more optimized)
+                # and prefer aspect ratios closer to 1:1 (more balanced)
+                aspect_ratio = max(width, height) / min(width, height)
+                score = area_m2 + (aspect_ratio - 1.0) * 0.01  # Slight preference for balanced ratios
+
+                if best_width is None or score < best_area:
+                    best_width = width
+                    best_height = height
+                    best_area = score
+
+    return best_width, best_height
 
 
 def format_size_label(duct_type: str, primary_mm: float | int, height_mm: float | int = 0) -> str:
@@ -101,6 +144,10 @@ def process_ducts(duct_rows: list, system_type: str = "Supply") -> list[dict]:
         diam_mm = row.get("duct_diameter") or 0.0
         height_mm = row.get("duct_height") or 0.0
         v_measured = row.get("measured_velocity") or 0.0
+
+        # Force height to 0 for flex and round ducts (they are circular)
+        if is_flex(duct_type) or ("round" in duct_type.lower() and not is_rectangular(duct_type)):
+            height_mm = 0.0
 
         lookup_key = (duct_type.lower(), system_type.lower())
         match = VELOCITY_LOOKUP.get(lookup_key)
@@ -143,21 +190,29 @@ def process_ducts(duct_rows: list, system_type: str = "Supply") -> list[dict]:
         else:
             status = "COMPLIANT"
 
-        d_min_mm = d_min(q_ls, v_max)
-        proposed_size = next_standard_size(d_min_mm)
+        # Calculate optimization based on duct type
         v_new = None
         optimization = "—"
+        proposed_size = None
         proposed_diameter_mm = None
         proposed_width_mm = None
         proposed_height_mm = None
-        if proposed_size:
-            new_area = cross_section_area(duct_type, proposed_size, proposed_size)
-            v_new = calc_velocity(q_ls, new_area)
-            if is_rectangular(duct_type):
-                proposed_width_mm = proposed_size
-                proposed_height_mm = proposed_size
-                optimization = f"→ {proposed_size} x {proposed_size} mm"
-            else:
+
+        if is_rectangular(duct_type):
+            # Find optimal rectangular size from standard dimensions
+            proposed_width_mm, proposed_height_mm = find_optimal_rectangular_size(q_ls, v_max)
+            if proposed_width_mm and proposed_height_mm:
+                new_area = (proposed_width_mm / 1000.0) * (proposed_height_mm / 1000.0)
+                v_new = calc_velocity(q_ls, new_area)
+                optimization = f"→ {proposed_width_mm} x {proposed_height_mm} mm"
+                proposed_size = proposed_width_mm  # Store width as main size for reference
+        else:
+            # Round and flex ducts
+            d_min_mm = d_min(q_ls, v_max)
+            proposed_size = next_standard_size(d_min_mm, duct_type)
+            if proposed_size:
+                new_area = cross_section_area(duct_type, proposed_size, 0)
+                v_new = calc_velocity(q_ls, new_area)
                 proposed_diameter_mm = proposed_size
                 optimization = f"→ Ø{proposed_size} mm"
 
@@ -257,12 +312,15 @@ def build_html(results: list[dict]) -> str:
       </div>
       <div>
         <span style="font-size:11px;letter-spacing:1px;text-transform:uppercase;font-family:'Courier New',monospace;">
-          ④ Minimum Required Diameter (Optimization)
+          ④ Duct Size Optimization
         </span>
         <div style="margin-top:8px;font-size:15px;">
-          \\( D_{\\min} = \\sqrt{\\dfrac{4 \\, Q}{\\pi \\, V_{\\max}}}
-             \\quad \\Rightarrow \\quad \\text{round up to next standard size} \\in
-             \\{100,\\,125,\\,150,\\,160,\\,200,\\,250,\\,315,\\,400,\\,500\\} \\ \\text{mm} \\)
+          \\( D_{\\min} = \\sqrt{\\dfrac{4 \\, Q}{\\pi \\, V_{\\max}}} \\quad \\text{(for round ducts)} \\)
+        </div>
+        <div style="margin-top:10px;font-size:13px;">
+          <b>Flex ducts:</b> \\(\\{75, 100, 125, 150, 200, 225, 250, 300, 350\\} \\ \\text{mm}\\)<br>
+          <b>Round rigid:</b> \\(\\{100, 125, 150, 160, 200, 250, 315, 400, 500\\} \\ \\text{mm}\\)<br>
+          <b>Rectangular:</b> Width × Height from standard dimensions \\(\\{75, 90, 100, ...\\}\\)
         </div>
       </div>
       <div style="margin-top:20px;border-top:1px solid #000;padding-top:12px;">
