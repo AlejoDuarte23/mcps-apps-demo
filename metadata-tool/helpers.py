@@ -25,7 +25,7 @@ def build_fallback_metadata(element: dict) -> dict:
     type_name = element["typeName"] or "Standard"
 
     return {
-        "Manufacturer": "Demo Company",
+        "Manufacturer": "VIKTOR company",
         "Model": f"{family_name.upper().replace(' ', '-')[:24]}-{type_name.upper().replace(' ', '-')[:16]}",
         "Keynote": "23 00 00",
         "Description": f"Fallback metadata for {family_name} {type_name}",

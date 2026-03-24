@@ -70,7 +70,7 @@ def analyze_fittings(rows: list[dict]) -> dict:
                 "pressure_issue": pressure_issue,
                 "pressure_issue_reason": "OK",
                 "type_issue_reason": "Type contains 30 and should be changed to 45 Degree" if requires_type_change else "OK",
-                "pressure_drop_label": format_pressure_drop(pressure_drop),
+                "pressure_drop_label": format_pressure_drop(row["pressure_drop"]),
                 "short_revit_id": row["revit_element_id"][-3:] if len(row["revit_element_id"]) >= 3 else row["revit_element_id"],
                 "is_compliant": is_compliant,
             }

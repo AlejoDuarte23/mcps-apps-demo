@@ -20,8 +20,8 @@ logger = logging.getLogger("viktor")
 class Parametrization(vkt.Parametrization):
     intro = vkt.Text(
         "# QA/QC – Fittings Check\n\n"
-        "This app checks fitting type names.\n"
-        "If a type contains `30` or `30°`, the fitting is flagged and the recommended type is `45 Degree`."
+        "This app checks if duct fittings use company standard Revit types and if all fittings have valid pressure drop values (Tees not included). "
+        "It returns compliant elements and fittings that require a Type update to comply with the company standard."
     )
 
     fittings_table = vkt.Table(
